@@ -1,8 +1,11 @@
 import asyncio
+import os
+import random
 from pyrogram import filters, errors
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Voice
+from pyrogram.raw.functions.phone import CreateGroupCall
 from pytgcalls.exceptions import NoActiveGroupCall
-from pytgcalls.types import MediaStream, AudioQuality, VideoQuality
+from pytgcalls.types import MediaStream, AudioQuality
 from ntgcalls import TelegramServerError
 from config import _C
 from core.clients import _b1, _a1, _c1
@@ -11,7 +14,7 @@ from helpers.api import _dm
 from helpers.queue import _atq, _aac_fn, _q
 from core._0x1a2b import _gb
 
-@_b1.on_message(filters.command(["play", "vplay"], ["", "/"]) & ~filters.private)
+@_b1.on_message(filters.command(["play"], ["", "/"]) & ~filters.private)
 async def _ss(_c, _m):
     try:
         await _m.delete()
@@ -25,37 +28,23 @@ async def _ss(_c, _m):
     
     _rp = _m.reply_to_message
     _at = _rp.audio or _rp.voice if _rp else None
-    _vt = _rp.video or _rp.document if _rp else None
     
-    if _at or _vt:
+    if _at:
         _aux = await _m.reply_text(f"**🔄 {_gb('pr')}...**")
         _lk = _rp.link
-        if _at:
-            _id = _at.file_unique_id
-            try:
-                _ti = _at.title or _at.file_name
-            except:
-                _ti = "Telegram Audio"
-            _du = _at.duration
-            try:
-                _fn = _at.file_unique_id + "." + (_at.file_name.split(".")[-1] if not isinstance(_at, Voice) else "ogg")
-            except:
-                _fn = _at.file_unique_id + ".ogg"
-            _fn = os.path.join(os.path.realpath("downloads"), _fn)
-            _vs = False
-        if _vt:
-            _id = _vt.file_unique_id
-            try:
-                _ti = _vt.title or _vt.file_name
-            except:
-                _ti = "Telegram Video"
-            _du = _vt.duration
-            try:
-                _fn = _vt.file_unique_id + "." + _vt.file_name.split(".")[-1]
-            except:
-                _fn = _vt.file_unique_id + ".mp4"
-            _fn = os.path.join(os.path.realpath("downloads"), _fn)
-            _vs = True
+        _id = _at.file_unique_id
+        try:
+            _ti = _at.title or _at.file_name
+        except:
+            _ti = "Telegram Audio"
+        _du = _at.duration
+        try:
+            _fn = _at.file_unique_id + "." + (_at.file_name.split(".")[-1] if not isinstance(_at, Voice) else "ogg")
+        except:
+            _fn = _at.file_unique_id + ".ogg"
+            
+        _fn = os.path.join(os.path.realpath("downloads"), _fn)
+        
         if not os.path.exists(_fn):
             try:
                 await _aux.edit(f"**⬇️ {_gb('d')}...**")
@@ -70,40 +59,44 @@ async def _ss(_c, _m):
         _th = _C.START_IMAGE_URL
     else:
         if len(_m.command) < 2:
-            return await _m.reply_text("**⚠️ Please provide a query or link.**")
+            return await _m.reply_text("**⚠️ Please provide a song name or link.**")
         
         _qr = " ".join(_m.command[1:])
         _aux = await _m.reply_text(f"**🔄 {_gb('pr')}...**")
         
-        _vs = _m.command[0].startswith("v")
-        
         try:
-            _fp, _ti, _du, _lk, _th = await _dm(_qr, _vs)
+            _fp, _ti, _du, _lk, _th = await _dm(_qr)
             
             if not _fp:
-                return await _aux.edit("**❌ API Failed.**")
+                return await _aux.edit("**❌ Song not found on JioSaavn.**")
         except Exception as _e:
             return await _aux.edit(f"**❌ Error: {_e}**")
     
-    _ms = (
-        MediaStream(
-            media_path=_fp,
-            video_flags=MediaStream.Flags.IGNORE,
-            audio_parameters=AudioQuality.MEDIUM,
-        ) if not _vs else
-        MediaStream(
-            media_path=_fp,
-            audio_parameters=AudioQuality.MEDIUM,
-            video_parameters=VideoQuality.SD_480p,
-        )
+    _ms = MediaStream(
+        media_path=_fp,
+        video_flags=MediaStream.Flags.IGNORE,
+        audio_parameters=AudioQuality.MEDIUM,
     )
-    _st = "Audio" if not _vs else "Video"
+    _st = "Audio"
     
     if _cid not in _q:
         try:
             try:
                 await _c1.join_vc(_cid, _ms)
             except NoActiveGroupCall:
+                # 🌟 NEW: Alice tries to automatically start the Voice Chat!
+                try:
+                    _peer = await _b1.resolve_peer(_cid)
+                    await _b1.invoke(
+                        CreateGroupCall(
+                            peer=_peer,
+                            random_id=random.randint(10000, 999999999)
+                        )
+                    )
+                    await asyncio.sleep(1) # Give Telegram a second to open it
+                except Exception:
+                    pass # If it fails (e.g., bot is not admin), it continues to the checks below
+                
                 try:
                     try:
                         await _b1.get_chat_member(_cid, _a1.id)
@@ -114,12 +107,12 @@ async def _ss(_c, _m):
                         except:
                             return await _aux.edit("**⚠️ Failed to invite Assistant.**")
                     except errors.ChatAdminRequired:
-                        return await _aux.edit("**⚠️ Make me admin.**")
+                        return await _aux.edit("**⚠️ Make me admin so I can auto-start Voice Chats!**")
                     
                     try:
                         await _c1.join_vc(_cid, _ms)
                     except NoActiveGroupCall:
-                        return await _aux.edit("**❌ No active Voice Chat.**")
+                        return await _aux.edit("**❌ Could not start the Voice Chat. Please start it manually.**")
                 except Exception as _e:
                     return await _aux.edit(f"**❌ Error: {_e}**")
             except TelegramServerError:
@@ -133,9 +126,9 @@ async def _ss(_c, _m):
     
     _cap = f"""{_sst}
 
-**🏷 Title:** [{_ti[:30]}...]({_lk})
+**🏷 Title:** [{_ti[:40]}]({_lk})
 **⏱ Duration:** {_du} Minutes
-**📡 Type:** {_st}
+**📡 Source:** JioSaavn
 **👤 Requested By:** {_rb}
 
 {_C._f}"""
