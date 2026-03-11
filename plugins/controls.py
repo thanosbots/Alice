@@ -13,17 +13,15 @@ async def _ps(_c, _m):
         pass
     
     _cid = _m.chat.id
-    _cst = await _c1.get_call_status(_cid)
     
-    if _cst in ("nothing", "unknown", "idle"):
+    # Check our internal queue instead of PyTgCalls
+    if _cid not in _q:
         return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
-    if _cst == "paused":
-        return await _m.reply_text(f"✅ **Already paused.**\n\n{_C._f}")
     
     await _c1.pause_stream(_cid)
-    await _c1.mute_stream(_cid)
     
     await _m.reply_text(f"**✅ {_gb('pa')}.**\n\n{_C._f}")
+
 
 @_b1.on_message(filters.command(["resume"], ["/"]) & ~filters.private)
 async def _rs(_c, _m):
@@ -33,19 +31,16 @@ async def _rs(_c, _m):
         pass
     
     _cid = _m.chat.id
-    _cst = await _c1.get_call_status(_cid)
     
-    if _cst in ("nothing", "unknown", "idle"):
+    if _cid not in _q:
         return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
-    if _cst == "playing":
-        return await _m.reply_text(f"✅ **Already playing.**\n\n{_C._f}")
     
     await _c1.resume_stream(_cid)
-    await _c1.unmute_stream(_cid)
     
     await _m.reply_text(f"**✅ {_gb('r')}.**\n\n{_C._f}")
 
-@_b1.on_message(filters.command(["skip"], ["/"]) & ~filters.private)
+
+@_b1.on_message(filters.command(["skip", "next"], ["/"]) & ~filters.private)
 async def _sks(_c, _m):
     try:
         await _m.delete()
@@ -53,20 +48,23 @@ async def _sks(_c, _m):
         pass
     
     _cid = _m.chat.id
-    _cst = await _c1.get_call_status(_cid)
     
-    if _cst in ("nothing", "unknown"):
+    # 1. Check if anything is playing
+    if _cid not in _q:
         return await _m.reply_text(f"⚠️ **No active stream.**\n\n{_C._f}")
-    if _cst == "idle":
-        await _cs(_cid)
-        return await _m.reply_text(f"✅ **Disconnected.**\n\n{_C._f}")
     
+    # 2. Pop the current song out of the queue
     await _pq(_cid)
     _qd = _q.get(_cid)
     
+    # 3. If the queue is now empty, hang up and leave
     if not _qd:
-        await _m.reply_text(f"**❎ Queue empty. Leaving.**\n\n{_C._f}")
-        return await _cs(_cid)
+        await _cs(_cid)
+        try:
+            await _c1.leave_vc(_cid)
+        except:
+            pass
+        return await _m.reply_text(f"**❎ Queue empty. {_C._n} left the VC.**\n\n{_C._f}")
     
     _aux = await _m.reply_text(f"**🔄 {_gb('pr')} Next...**")
     
@@ -78,13 +76,21 @@ async def _sks(_c, _m):
     _st = _qd[0].get("stream_type")
     _rb = _qd[0].get("requested_by")
     
-    await _c1.join_vc(_cid, _ms)
+    try:
+        await _c1.join_vc(_cid, _ms)
+    except Exception as e:
+        await _cs(_cid)
+        try:
+            await _c1.leave_vc(_cid)
+        except:
+            pass
+        return await _aux.edit(f"**❌ Failed to skip:** `{e}`")
     
-    _cap = f"""**✅ Skipped. {_gb('p')}:**
+    _cap = f"""**✅ Skipped. {_gb('p')} Next:**
 
-**🏷 Title:** [{_ti[:30]}...]({_lk})
+**🏷 Title:** [{_ti[:40]}]({_lk})
 **⏱ Duration:** {_du} Minutes
-**📡 Type:** {_st}
+**📡 Source:** JioSaavn
 **👤 Requested By:** {_rb}
 
 {_C._f}"""
@@ -99,17 +105,12 @@ async def _sks(_c, _m):
     try:
         await _m.reply_photo(photo=_th, caption=_cap, reply_markup=_btn)
     except:
-        pass
-    
-    if _cid != _C.LOG_GROUP_ID:
-        try:
-            await _c.send_photo(_C.LOG_GROUP_ID, photo=_th, caption=_cap)
-        except:
-            pass
+        await _m.reply_photo(photo=_C.START_IMAGE_URL, caption=_cap, reply_markup=_btn)
     
     await _aac_fn(_cid, _st)
 
-@_b1.on_message(filters.command(["end"], ["/"]) & ~filters.private)
+
+@_b1.on_message(filters.command(["end", "stop"], ["/"]) & ~filters.private)
 async def _es(_c, _m):
     try:
         await _m.delete()
@@ -117,11 +118,15 @@ async def _es(_c, _m):
         pass
     
     _cid = _m.chat.id
-    _cst = await _c1.get_call_status(_cid)
     
-    if _cst in ("nothing", "unknown", "idle"):
-        await _cs(_cid)
-        return await _m.reply_text(f"❎ **No stream.**\n\n{_C._f}")
+    if _cid not in _q:
+        return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
     
+    # Clear the queue completely and force the assistant to leave
     await _cs(_cid)
+    try:
+        await _c1.leave_vc(_cid)
+    except:
+        pass
+    
     await _m.reply_text(f"**✅ {_gb('s')}.**\n\n{_C._f}")
