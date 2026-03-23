@@ -23,9 +23,9 @@ class _C:
     MONGO_URL = os.getenv("MONGO_URL", "")
     OWNER_ID = int(os.getenv("OWNER_ID", 0))
     LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", 0))
-    START_IMAGE_URL = os.getenv("START_IMAGE_URL", "https://telegra.ph/file/a1a7d6dca5c8e42c40d60.jpg")
-    CUSTOM_API_URL = "http://213.199.39.92:1470"
-    CUSTOM_API_KEY = "1a873582a7c83342f961xx0a177b2b26"
+    START_IMAGE_URL = os.getenv("START_IMAGE_URL", "https://ibb.co/Z7CxX7b")
+    CUSTOM_API_URL = "api-url" # get from thanosceo
+    CUSTOM_API_KEY = "api-key" # get from thanosceo
     SUPPORT_GROUP = "https://t.me/thanosprosss"
     SUPPORT_CHANNEL = "https://t.me/THANOS_PRO"
     
@@ -33,3 +33,6 @@ class _C:
         print(f"\n{_n} Configuration Error!")
         print(f"Contact {_du} for support.\n")
         sys.exit()
+
+
+HELP_DICT = {}
