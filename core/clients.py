@@ -38,6 +38,7 @@ class _B1(Client):
             api_id=_C.API_ID,
             api_hash=_C.API_HASH,
             bot_token=_C.BOT_TOKEN,
+            plugins=dict(root="plugins") # <--- THIS IS THE MAGIC LINE
         )
 
     async def start(self):
