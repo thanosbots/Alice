@@ -33,7 +33,7 @@ async def _dm(_q: str, _iv: bool = False):
         _ts = int(asyncio.get_event_loop().time())
         _ex = "mp4" if _iv else "mp3"
         
-        _au = f"{_C.CUSTOM_API_URL}/youtube"
+        _au = f"{_C.CUSTOM_API_URL}/music"
         _p = {
             "query": _q,
             "video": "true" if _iv else "false",

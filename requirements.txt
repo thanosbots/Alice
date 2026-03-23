@@ -1,0 +1,11 @@
+pyrofork
+motor
+tgcrypto
+py-tgcalls
+ntgcalls
+aiohttp
+pymongo
+dnspython
+Pillow
+python-dotenv
+youtube-search-python

@@ -15,7 +15,9 @@ async def _asc(_cid: int):
     return await _cdb.insert_one({"chat_id": _cid})
 
 async def _gsc() -> list:
+    """Returns a clean list of Group IDs for broadcasting."""
     _cl = []
-    async for _c in _cdb.find({"chat_id": {"$lt": 0}}):
-        _cl.append(_c)
+    # Using $ne: 0 to catch all valid negative chat IDs
+    async for _c in _cdb.find({"chat_id": {"$ne": 0}}):
+        _cl.append(_c["chat_id"])
     return _cl
