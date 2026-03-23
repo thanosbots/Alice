@@ -1,9 +1,16 @@
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import _C
+from config import _C, HELP_DICT # Added HELP_DICT import
 from core.clients import _b1, _c1
 from helpers.queue import _cs, _pq, _aac_fn, _q
-from core._0x1a2b import _gb
+
+# Registering the Admin commands to the dynamic Help Menu!
+HELP_DICT["⚙️ Admin"] = """**⚙️ Admin & Control Commands**
+
+`/pause` - Pause the currently playing stream
+`/resume` - Resume the paused stream
+`/skip` or `/next` - Skip to the next track in the queue
+`/end` or `/stop` - Stop playback, clear queue, and make the bot leave"""
 
 @_b1.on_message(filters.command(["pause"], ["/"]) & ~filters.private)
 async def _ps(_c, _m):
@@ -14,13 +21,13 @@ async def _ps(_c, _m):
     
     _cid = _m.chat.id
     
-    # Check our internal queue instead of PyTgCalls
     if _cid not in _q:
-        return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
+        return await _m.reply_text("❎ **No active stream.**")
     
     await _c1.pause_stream(_cid)
     
-    await _m.reply_text(f"**✅ {_gb('pa')}.**\n\n{_C._f}")
+    # Cleaned up response
+    await _m.reply_text("**✅ Stream Paused.**")
 
 
 @_b1.on_message(filters.command(["resume"], ["/"]) & ~filters.private)
@@ -33,11 +40,12 @@ async def _rs(_c, _m):
     _cid = _m.chat.id
     
     if _cid not in _q:
-        return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
+        return await _m.reply_text("❎ **No active stream.**")
     
     await _c1.resume_stream(_cid)
     
-    await _m.reply_text(f"**✅ {_gb('r')}.**\n\n{_C._f}")
+    # Cleaned up response
+    await _m.reply_text("**✅ Stream Resumed.**")
 
 
 @_b1.on_message(filters.command(["skip", "next"], ["/"]) & ~filters.private)
@@ -48,25 +56,23 @@ async def _sks(_c, _m):
         pass
     
     _cid = _m.chat.id
+    bot_name = _c.me.first_name if _c.me else "Music Bot"
     
-    # 1. Check if anything is playing
     if _cid not in _q:
-        return await _m.reply_text(f"⚠️ **No active stream.**\n\n{_C._f}")
+        return await _m.reply_text("⚠️ **No active stream.**")
     
-    # 2. Pop the current song out of the queue
     await _pq(_cid)
     _qd = _q.get(_cid)
     
-    # 3. If the queue is now empty, hang up and leave
     if not _qd:
         await _cs(_cid)
         try:
             await _c1.leave_vc(_cid)
         except:
             pass
-        return await _m.reply_text(f"**❎ Queue empty. {_C._n} left the VC.**\n\n{_C._f}")
+        return await _m.reply_text(f"**❎ Queue empty. {bot_name} left the VC.**")
     
-    _aux = await _m.reply_text(f"**🔄 {_gb('pr')} Next...**")
+    _aux = await _m.reply_text("**🔄 Processing Next...**")
     
     _ms = _qd[0].get("media_stream")
     _ti = _qd[0].get("title")
@@ -86,14 +92,13 @@ async def _sks(_c, _m):
             pass
         return await _aux.edit(f"**❌ Failed to skip:** `{e}`")
     
-    _cap = f"""**✅ Skipped. {_gb('p')} Next:**
+   
+    _cap = f"""**✅ Skipped. ✨ {bot_name} Now Playing Next:**
 
 **🏷 Title:** [{_ti[:40]}]({_lk})
 **⏱ Duration:** {_du} Minutes
-**📡 Source:** JioSaavn
-**👤 Requested By:** {_rb}
-
-{_C._f}"""
+**📡 Source:** {bytes.fromhex('616c69636520617069').decode()}
+**👤 Requested By:** {_rb}"""
     
     _btn = InlineKeyboardMarkup([[InlineKeyboardButton("✖️ Close", callback_data="alice_close")]])
     
@@ -118,15 +123,15 @@ async def _es(_c, _m):
         pass
     
     _cid = _m.chat.id
+    bot_name = _c.me.first_name if _c.me else "Music Bot"
     
     if _cid not in _q:
-        return await _m.reply_text(f"❎ **No active stream.**\n\n{_C._f}")
+        return await _m.reply_text("❎ **No active stream.**")
     
-    # Clear the queue completely and force the assistant to leave
     await _cs(_cid)
     try:
         await _c1.leave_vc(_cid)
     except:
         pass
-    
-    await _m.reply_text(f"**✅ {_gb('s')}.**\n\n{_C._f}")
+   
+    await _m.reply_text(f"**✅ Stream stopped and {bot_name} cleared the queue.**")

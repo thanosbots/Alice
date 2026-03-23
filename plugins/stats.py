@@ -6,6 +6,12 @@ from database.users import _gsu
 from database.chats import _gsc
 from helpers.queue import _aac, _avc
 from helpers.utils import _gu
+from config import HELP_DICT
+
+HELP_DICT["📊 Analytics"] = """**📊 Server & Bot Analytics**
+
+`/stats` - View bot uptime, total groups, users, and active streams
+`/ping` - (If available) Check bot latency"""
 
 @_b1.on_message(filters.command(["stats"], ["/"]) & _s)
 async def _bst(_c, _m):

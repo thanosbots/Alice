@@ -1,79 +1,118 @@
-from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import _C
+from pyrogram import filters, Client
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from config import _C, HELP_DICT  # Imports your empty dictionary from config
 from core.clients import _b1
-from core._0x1a2b import _gb, _gm
-
-@_b1.on_callback_query(filters.regex("alice_help"))
-async def _ahc(_c, _q):
-    _cap = f"""**🎵 {_C._fn} Commands**
-
-╭──────────────────────╮
-│ **🎶 Music Commands**
-╰──────────────────────╯
-
-`/play` [song name/link] - Play audio
-`/vplay` [video name/link] - Play video
-`/pause` - Pause stream
-`/resume` - Resume stream
-`/skip` - Skip track
-`/end` - Stop & leave
-
-╭──────────────────────╮
-│ **✨ About {_C._n}**
-╰──────────────────────╯
-
-{_C._fn} is a premium music streaming bot with cutting-edge features!
-
-**{_gm('m1')}**
-
-{_C._f}"""
-    
-    _btn = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🔙 Back", callback_data="alice_home"),
-            InlineKeyboardButton("👨‍💻 Dev", url=f"https://t.me/{_C._du}")
-        ]
-    ])
-    
-    await _q.message.edit(text=_cap, reply_markup=_btn)
-    await _q.answer()
 
 @_b1.on_callback_query(filters.regex("alice_home"))
-async def _ahom(_c, _q):
-    _mn = _q.from_user.mention
-    _gr = _gb('g')
-    _m1 = _gm('m1')
+async def _ahom(_c: Client, _q: CallbackQuery):
+    bot_name = _c.me.first_name if _c.me else "Music Bot"
     
-    _cap = f"""**{_C._e} {_gr}, {_mn}! {_C._e}**
+    _cap = f"""**✨ Hello, I'm {bot_name}! ✨**
 
-🎵 **{_m1}**
+🎵 **Your personal music streaming assistant!**
 
-I bring high-quality music to your Telegram voice chats with features like:
+I can play high-quality audio and video in your Telegram voice chats with crystal-clear sound quality.
 
+**🎭 Features:**
 • ⚡ Lightning-fast streaming
-• 🎭 Queue management
-• 🎵 HD audio quality
-• 📹 Video playback
+• 🎭 Zero lag playback  
+• 📝 Queue management
 • 🔄 24/7 availability
 
-{_C._f}"""
+╭─────────────────╮
+│ **📌 Version:** {_C._v}
+╰─────────────────╯"""
     
     _btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"➕ Add {_C._n}", url=f"https://t.me/{_b1.username}?startgroup=true")],
+        [InlineKeyboardButton(f"➕ Add {bot_name}", url=f"https://t.me/{_b1.username}?startgroup=true")],
         [
-            InlineKeyboardButton("📜 Commands", callback_data="alice_help"),
-            InlineKeyboardButton("👨‍💻 Dev", url=f"https://t.me/{_C._du}")
+            InlineKeyboardButton("Privacy Policy", callback_data="alice_privacy"), 
+            InlineKeyboardButton("Repo", url="https://github.com/thanosbots/Alice")                 
+        ],
+        [
+            InlineKeyboardButton("Support", url=_C.SUPPORT_GROUP),         
+            InlineKeyboardButton("Updates", url=_C.SUPPORT_CHANNEL)        
+        ],
+        [
+            InlineKeyboardButton("Help", callback_data="alice_help")    
         ]
     ])
     
-    await _q.message.edit(text=_cap, reply_markup=_btn)
+    await _q.message.edit_text(text=_cap, reply_markup=_btn)
     await _q.answer()
 
+@_b1.on_callback_query(filters.regex("alice_help"))
+async def _ahc(_c: Client, _q: CallbackQuery):
+    bot_name = _c.me.first_name if _c.me else "Music Bot"
+    
+    _cap = f"**🎵 {bot_name} Help Menu**\n\nChoose a category below to view its commands:"
+    
+    keyboard = []
+    row = []
+    
+    # Automatically builds buttons for every plugin you register in HELP_DICT
+    for category_name in HELP_DICT.keys():
+        row.append(InlineKeyboardButton(category_name, callback_data=f"hcat_{category_name}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+        
+    keyboard.append([InlineKeyboardButton("🔙 Back to Home", callback_data="alice_home")])
+    
+    await _q.message.edit_text(text=_cap, reply_markup=InlineKeyboardMarkup(keyboard))
+    await _q.answer()
+
+@_b1.on_callback_query(filters.regex(r"^hcat_(.*)"))
+async def _hcat(_c: Client, _q: CallbackQuery):
+    # Extracts the category name (like "▶️ Play") from the button click
+    category = _q.matches[0].group(1)
+    
+    if category in HELP_DICT:
+        text = f"**{category} Commands**\n\n{HELP_DICT[category]}"
+        
+        btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Back to Help", callback_data="alice_help")]
+        ])
+        
+        await _q.message.edit_text(text=text, reply_markup=btn)
+    await _q.answer()
+
+@_b1.on_callback_query(filters.regex("alice_privacy"))
+async def _privacy_callback(client: Client, query: CallbackQuery):
+    bot_name = client.me.first_name if client.me else "Music Bot"
+    
+    privacy_text = f"""**🔒 Privacy Policy for {bot_name}**
+
+To provide a seamless music streaming experience, we only collect the minimum data required:
+
+**1. User Identification:**
+We store your Telegram User ID and First Name solely to identify who requested a song and to manage active queues.
+
+**2. Music Queue Data:**
+We temporarily process the name of the song currently playing and the total number of songs played to manage the voice chat. 
+
+**3. No Message Logging:**
+We **do not** read, store, or log your personal messages or group chats. The bot only listens for its specific command prefixes.
+
+**4. Data Sharing:**
+Your data is never shared with or sold to third parties.
+
+By using this bot, you agree to these terms."""
+
+    back_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Back", callback_data="alice_home")]
+    ])
+
+    await query.message.edit_text(text=privacy_text, reply_markup=back_btn)
+    await query.answer()
+
 @_b1.on_callback_query(filters.regex("alice_close"))
-async def _acl(_c, _q):
+async def _acl(_c: Client, _q: CallbackQuery):
+    bot_name = _c.me.first_name if _c.me else "Music Bot"
     try:
         await _q.message.delete()
     except:
         pass
-    await _q.answer(f"{_C._e} {_C._n} says goodbye!")
+    await _q.answer(f"✨ {bot_name} says goodbye!")
