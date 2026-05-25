@@ -33,7 +33,8 @@ async def _dm(_q: str, _iv: bool = False):
         _ts = int(asyncio.get_event_loop().time())
         _ex = "mp4" if _iv else "mp3"
         
-        _au = f"{_C.CUSTOM_API_URL}/music"
+        # FIX 1: Point to /youtube instead of /music
+        _au = f"{_C.CUSTOM_API_URL}/youtube"
         _p = {
             "query": _q,
             "video": "true" if _iv else "false",
@@ -50,11 +51,21 @@ async def _dm(_q: str, _iv: bool = False):
             _d = await _r.json()
         
         if _d.get("status") != "success":
-            _l.error(f"API Failed: {_d.get('error')}")
+            _l.error(f"API Failed: {_d.get('error', 'Unknown')}")
             return None, None, None, None, None
 
-        _su = _d.get("stream_url")
+        _raw_su = _d.get("stream_url")
+        if not _raw_su:
+            return None, None, None, None, None
+
+        # FIX 2: Reconstruct the stream URL to force it over your HTTPS domain
+        # This removes the raw IP address and uses your mooo.com domain
+        _stream_id = _raw_su.split("/")[-1]
+        _su = f"{_C.CUSTOM_API_URL}/stream/{_stream_id}"
+
         _ti = _d.get("title", "Unknown Title")
+        
+        # FIX 3: Safe fallbacks because the API doesn't send these currently
         _du = _d.get("duration", "0")
         _th = _d.get("thumbnail", _C.START_IMAGE_URL)
         _lk = _d.get("link", _q)
@@ -63,10 +74,7 @@ async def _dm(_q: str, _iv: bool = False):
             _di = int(float(_du))
             _dm = f"{_di // 60}:{_di % 60:02d}" if _di > 60 else str(_di)
         except:
-            _dm = str(_du)
-
-        if not _su:
-            return None, None, None, None, None
+            _dm = "0:00" # Safe fallback if duration calculation fails
 
         _vi = _d.get("id", str(_ts))
         _fp = os.path.join("downloads", f"alice_{_vi}.{_ex}")
