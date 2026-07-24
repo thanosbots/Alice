@@ -1,60 +1,48 @@
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+"""
+core/decorators.py — voice-chat handler REGISTRATION.
+
+Asli logic events.py mein rehti hai; yahan sirf wiring hai.
+
+Registration ek hi jagah honi chahiye. Pehle events.py bhi khud
+`@_c1.vcbot.on_update()` se register karti thi aur yahan bhi `fl.stream_end`
+tha — dono ek hi PyTgCalls instance par. Natija: har stream end par queue do
+baar pop hoti thi (gaane skip) aur join_vc() do baar chalta tha (stutter).
+
+Registration yahan rakha hai, events.py mein nahi, kyunki _sh() ko main.py
+seedha call karta hai — Pyrogram ke plugin loader par depend nahi karta.
+"""
+
+import logging
+
 from pytgcalls import filters as fl
 from pytgcalls.types import ChatUpdate, Update
-from config import _C
-from core.clients import _b1
-from helpers.queue import _cs, _pq, _aac_fn, _q
-from core._0x1a2b import _gb
+
+# ⚠️  Ye path tumhari events.py ki jagah ke hisaab se badalna pad sakta hai.
+#     plugins/events.py  -> from plugins.events import advance, cleanup
+#     core/events.py     -> from core.events import advance, cleanup
+from plugins.events import advance, cleanup
+
+_l = logging.getLogger("Alice.Events")
+
 
 async def _sh(_cl):
-    @_cl.vcbot.on_update(fl.chat_update(ChatUpdate.Status.LEFT_CALL))
+    @_cl.vcbot.on_update(
+        fl.chat_update(
+            ChatUpdate.Status.LEFT_CALL
+            | ChatUpdate.Status.KICKED
+            | ChatUpdate.Status.CLOSED_VOICE_CHAT
+        )
+    )
     async def _lh(_, _u: Update):
-        return await _cs(_u.chat_id)
+        await cleanup(_u.chat_id)
 
-    @_cl.vcbot.on_update(fl.stream_end)
+    # ⚠️  BRACKET ZAROORI HAI: fl.stream_end ek CLASS hai, filter object nahi.
+    #     Bina () ke class khud pass hoti hai; dispatcher use filter(client,
+    #     update) karke bulaata hai, jo __call__ nahi balki __init__ chala kar
+    #     naya object bana deta hai — isinstance(update, StreamEnded) check
+    #     kabhi hota hi nahi. Handler chalta hi nahi tha.
+    @_cl.vcbot.on_update(fl.stream_end())
     async def _seh(_, _u: Update):
-        _cid = _u.chat_id
-        await _pq(_cid)
-        _qd = _q.get(_cid)
-        
-        if not _qd:
-            await _b1.send_message(_cid, f"**🎵 {_C._n}: Queue is empty. Leaving the Voice Chat.**\n\n{_C._f}")
-            return await _cs(_cid)
-        
-        _ms = _qd[0].get("media_stream")
-        _ti = _qd[0].get("title")
-        _du = _qd[0].get("duration")
-        _lk = _qd[0].get("link")
-        _th = _qd[0].get("thumbnail")
-        _st = _qd[0].get("stream_type")
-        _cn = _qd[0].get("chat_name")
-        _rb = _qd[0].get("requested_by")
+        await advance(_u.chat_id, _cl.join_vc)
 
-        await _cl.join_vc(_cid, _ms)
-        
-        _cap = f"""**🎵 {_gb('p')}**
-
-**🏷 Title:** [{_ti[:30]}...]({_lk})
-**⏱ Duration:** {_du} Minutes
-**📡 Type:** {_st}
-**👤 Requested By:** {_rb}
-**📍 Chat:** {_cn}
-
-{_C._f}"""
-        
-        _btn = InlineKeyboardMarkup([[
-            InlineKeyboardButton("✖️ Close", callback_data="alice_close")
-        ]])
-        
-        try:
-            await _b1.send_photo(_cid, photo=_th, caption=_cap, reply_markup=_btn)
-        except:
-            pass
-            
-        if _cid != _C.LOG_GROUP_ID:
-            try:
-                await _b1.send_photo(_C.LOG_GROUP_ID, photo=_th, caption=_cap)
-            except:
-                pass
-                
-        await _aac_fn(_cid, _st)
+    _l.info("vc handlers registered (stream_end + call_dead)")
