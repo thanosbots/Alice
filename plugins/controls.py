@@ -97,7 +97,6 @@ async def _sks(_c, _m):
 
 **🏷 Title:** [{_ti[:40]}]({_lk})
 **⏱ Duration:** {_du} Minutes
-**📡 Source:** {bytes.fromhex('616c69636520617069').decode()}
 **👤 Requested By:** {_rb}"""
     
     _btn = InlineKeyboardMarkup([[InlineKeyboardButton("✖️ Close", callback_data="alice_close")]])
