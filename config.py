@@ -24,8 +24,8 @@ class _C:
     OWNER_ID = int(os.getenv("OWNER_ID", 0))
     LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", 0))
     START_IMAGE_URL = os.getenv("START_IMAGE_URL", "https://ibb.co/Z7CxX7b")
-    CUSTOM_API_URL = "https://alice-api.mooo.com"
-    CUSTOM_API_KEY = "1a873582a7c83342f961xx0a177b2b26"
+    CUSTOM_API_URL = "https://alicemusic.online"
+    CUSTOM_API_KEY = "your_api_key_here"  # Replace with your actual API key
     SUPPORT_GROUP = "https://t.me/thanosprosss"
     SUPPORT_CHANNEL = "https://t.me/THANOS_PRO"
     
