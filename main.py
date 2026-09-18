@@ -1,10 +1,3 @@
-"""
-Alice Music Bot v2.0
-Open Source Music Streaming Bot
-Credits: Rishabh Anand (@rishabhops)
-
-⚠️  TEMP DIAGNOSTIC blocks abhi maujood hain — bug confirm hone ke baad hata dena.
-"""
 
 import asyncio
 import logging
