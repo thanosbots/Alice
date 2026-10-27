@@ -1,16 +1,27 @@
 <img src="assets/alice-mark.svg" align="right" width="210" alt="Alice music bot — lavender headphones monogram">
 
-# Alice Music Bot
+# Alice Music Bot — Telegram Music Bot Without a Music API Key
 
 <img src="assets/alice-waveform.gif" width="240" height="36" alt="Animated lavender and lime audio waveform">
 
 <p>
-  <strong>PYTHON · TELEGRAM · THANOS PRO</strong>
+  <strong>ALICE 2.0 · FREE TO USE · NO MUSIC API KEY NEEDED</strong>
 </p>
 
 <img src="assets/icons/chat.svg" width="18" height="18" align="center" alt=""> [Support ↗](https://t.me/thanosprosss) &nbsp; / &nbsp; <img src="assets/icons/announcement.svg" width="18" height="18" align="center" alt=""> [Updates ↗](https://t.me/THANOS_PRO) &nbsp; / &nbsp; <img src="assets/icons/code.svg" width="18" height="18" align="center" alt=""> [Developer ↓](#developer)
 
-**Alice** is a Telegram music bot for playing songs in group voice chats, written in Python with Pyrofork and Py-TgCalls. I built it to make listening together simple, with song search, queue controls and custom player cards.
+**Your group. Your music. No paid music API.**
+
+**Alice 2.0** is a free, self-hosted **Telegram music bot** for group voice chats. Search for songs, share supported music links, or play Telegram audio with queue controls and custom player cards. Built in Python with Pyrofork and Py-TgCalls, Alice handles music lookup inside the bot—there is no separate music API server to deploy or music API key to buy.
+
+> **100% free to use. No music API key needed.**  
+> Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are still required.
+
+Current code release: **2.1.0**, part of the Alice 2.x series.
+
+[Get started](https://alicemusic.online/getting-started.html) · [Deploy Alice](https://alicemusic.online/deployment.html) · [Command guide](https://alicemusic.online/commands.html)
+
+## What can Alice do?
 
 <img src="assets/icons/search.svg" width="18" height="18" align="center" alt=""> Song search and playback from supported song links.  
 <img src="assets/icons/audio.svg" width="18" height="18" align="center" alt=""> Telegram audio files and voice messages.  
@@ -25,6 +36,53 @@
 Commands, deployment, configuration and troubleshooting are in the **[Alice documentation ↗](https://alicemusic.online)**.
 
 For help, join the [Telegram support group ↗](https://t.me/thanosprosss).
+
+## Run your own Telegram music bot
+
+You need Python 3, FFmpeg/FFprobe, a MongoDB connection, a Telegram bot token, and Telegram API credentials with an assistant account session. The setup script prepares the Python 3.11 environment and installs the bot dependencies.
+
+```sh
+git clone https://github.com/thanosbots/Alice.git
+cd Alice
+bash setup.sh
+```
+
+Fill in the generated `Config.env` using [Config.env.example](Config.env.example), then start Alice:
+
+```sh
+bash start.sh
+```
+
+Add the bot and assistant account to your group, grant the permissions described in the [getting started guide](https://alicemusic.online/getting-started.html), and open a voice chat.
+
+| Command | What it does |
+| :--- | :--- |
+| `/play song name` | Find a song and play it or add it to the queue |
+| `/search song name` | Choose from matching songs |
+| `/queue` | View upcoming tracks |
+| `/pause`, `/resume` | Control playback |
+| `/skip`, `/stop` | Move to the next track or end playback |
+| `/shuffle`, `/repeat` | Change how the queue plays |
+
+You can also reply to a Telegram audio file or voice message with `/play`. Playback and queue edits are restricted to group admins or the configured bot owner.
+
+## Frequently asked questions
+
+### Does Alice work without an API?
+
+**No music API key is needed.** Alice does not need a paid music API subscription or a separately hosted music API server. It still makes online requests to a music provider and uses Telegram's API, so it is not API-free or offline.
+
+### Is Alice free?
+
+Alice is free to use, with no bot subscription or music API fee. Your hosting provider, database provider or internet service may charge for their services.
+
+### Which credentials do I need?
+
+Your Telegram `API_ID`, `API_HASH`, `BOT_TOKEN`, assistant `STRING_SESSION`, and MongoDB `MONGO_URL`. Keep these in your local `Config.env`; never commit them to GitHub.
+
+### Where can I deploy Alice?
+
+Use a [Linux VPS](https://alicemusic.online/deploy-vps.html), [local Linux machine](https://alicemusic.online/deploy-linux.html), or [macOS](https://alicemusic.online/deploy-macos.html). Follow the deployment guide for your platform.
 
 <a id="developer"></a>
 
