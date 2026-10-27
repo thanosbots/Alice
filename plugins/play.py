@@ -1,292 +1,158 @@
+"""Prepare requests without holding the voice-control lock."""
 import asyncio
-import functools
-import os
+import logging
 import random
-
+from pathlib import Path
 from pyrogram import filters, errors
 from pyrogram.enums import ParseMode
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Voice
 from pyrogram.raw.functions.phone import CreateGroupCall
 from pytgcalls.exceptions import NoActiveGroupCall
 from pytgcalls.types import MediaStream, AudioQuality
-from ntgcalls import TelegramServerError
+from config import Config
+from core.clients import bot, assistant, voice
+from database.chats import save_chat
+from database.users import increment_play_count, save_user
+from helpers.api import resolve_audio
+from helpers.catalog import MusicError
+from helpers.media import validate_audio
+from helpers.player import controls
+from helpers.style import track_card
+from helpers.identity import is_owner, selection_name
+from helpers.artwork import artwork_for, background_notice
+from helpers.queue import enqueue, mark_active, queues, chat_locks, request_locks, request_versions
 
-from config import _C
-from core.clients import _b1, _a1, _c1
-from database.chats import _asc
-from database.users import _inc_played, _asu
-from helpers.api import _dm_full, _gas
-from helpers.captions import now_playing, queued
-from helpers.queue import _atq, _aac_fn, _q
-from core._0x1a2b import _gb
-from helpers.thumbnail import generate_thumbnail
+log = logging.getLogger(__name__)
 
+@bot.on_message(filters.command('play') & filters.group)
+async def play_command(client, message):
+    await play_request(client, message)
 
-# ---------------------------------------------------------------------------
-# AUDIO MODE — stutter ho to "mono", sab smooth ho to "stereo" try karo.
-#
-#   mono   = 48000 Hz, 1 channel  -> poora frequency range, encode load aadha
-#   stereo = 48000 Hz, 2 channels -> AudioQuality.HIGH ke barabar
-#
-# MEDIUM (36 kHz) par WAPAS MAT JAANA — wahi original quality loss tha.
-# Frequency range girana quality maarta hai; channels girana nahi.
-# ---------------------------------------------------------------------------
-_AUDIO_MODE = "stereo"
+async def play_request(client, message, query=None, requester=None):
+    chat_id = message.chat.id
+    version = request_versions[chat_id]
+    # Preserve request order without delaying pause, skip, stop or stream-end events.
+    async with request_locks[chat_id]:
+        if version != request_versions[chat_id]:
+            return
+        await prepare_request(client, message, query, requester, version)
 
-
-def _audio_params():
-    """
-    AudioParameters ka signature py-tgcalls versions ke beech badla hai,
-    isliye fail hone par AudioQuality par safe fallback.
-    """
-    if _AUDIO_MODE == "stereo":
-        return AudioQuality.HIGH
+async def prepare_request(client, message, query, requester, version):
+    chat_id = message.chat.id
+    user = requester or message.from_user
+    if not user:
+        return await message.reply_text('Send /play from your personal account.')
+    if len(queues.get(chat_id, [])) >= Config.MAX_QUEUE_SIZE:
+        return await message.reply_text('The queue is full. Remove a song or wait for a free place.')
+    reply = message.reply_to_message if query is None else None
+    attachment = (reply.audio or reply.voice) if reply else None
+    if not attachment and query is None and len(message.command) < 2:
+        return await message.reply_text('◇ Set the mood\n\n/play song name\nOr reply to an audio file with /play.')
+    status = await message.reply_text('♛ Welcome, Rishabh Anand. Preparing your selection…' if is_owner(user) else '◇ Finding your sound…')
     try:
-        from pytgcalls.types import AudioParameters
-        return AudioParameters(bitrate=48000, channels=1)
-    except Exception as _e:
-        print(f"[audio] AudioParameters unavailable ({_e}) -> AudioQuality.HIGH")
-        return AudioQuality.HIGH
-
-
-def _fmt_dur(_sec) -> str:
-    try:
-        _sec = int(float(_sec))
-    except (TypeError, ValueError):
-        return "0:00"
-    if _sec >= 3600:
-        return f"{_sec // 3600}:{(_sec % 3600) // 60:02d}:{_sec % 60:02d}"
-    return f"{_sec // 60}:{_sec % 60:02d}"
-
-
-async def _build_thumb(_th_url, _ti, _du_sec, _rb, _bot_name, _meta=None):
-    """
-    Cover download + PIL render.
-
-    NOTE: ye ab VC join se PEHLE chalta hai (original order).
-    Pichhle version mein maine ise join ke baad move kiya tha taki music
-    jaldi start ho — par uska side-effect ye tha ki PIL rendering stream ke
-    DAURAAN chalti thi, aur CPU tight hone par gaane ke pehle kuch second
-    mein extra stutter deti thi. Music ~2 sec late start hoga, par opening
-    clean rahegi.
-    """
-    _tmp = "dummy_cover"
-    try:
-        if _th_url and str(_th_url).startswith("http"):
-            _path = os.path.join("downloads", f"cover_{random.randint(1000, 999999)}.jpg")
-            _s = await _gas()
-            async with _s.get(_th_url) as _r:
-                if _r.status == 200:
-                    with open(_path, "wb") as _f:
-                        _f.write(await _r.read())
-                    _tmp = _path
-
-        _meta = _meta or {}
-        _loop = asyncio.get_event_loop()
-        # run_in_executor kwargs support nahi karta -> functools.partial
-        _fn = functools.partial(
-            generate_thumbnail,
-            _tmp, _ti, _du_sec, 0, _rb, _bot_name,
-            artist=_meta.get("artist") or None,
-            genre=_meta.get("genre") or None,
-            views=_meta.get("views"),
-            likes=_meta.get("likes"),
-        )
-        return await _loop.run_in_executor(None, _fn)
-    except Exception as _e:
-        print(f"Thumbnail generation failed: {_e}")
-        return _th_url
-    finally:
-        if _tmp != "dummy_cover" and os.path.exists(_tmp):
+        if attachment:
+            if (attachment.file_size or 0) > Config.MAX_DOWNLOAD_MB * 1024 * 1024 or (attachment.duration or 0) > Config.MAX_TRACK_MINUTES * 60:
+                raise MusicError('Choose a smaller or shorter audio file.')
+            directory = Path('downloads')
+            directory.mkdir(exist_ok=True)
+            path = directory / f'telegram_{attachment.file_unique_id}.audio'
+            # Per-message unique partial names and atomic publication avoid incomplete cache hits.
+            if not path.exists():
+                temporary = path.with_suffix(f'.{chat_id}.{message.id}.part')
+                try:
+                    downloaded = await reply.download(file_name=str(temporary.resolve()))
+                    if not downloaded or not temporary.exists():
+                        raise MusicError('Audio download did not complete. Please try again.')
+                    if temporary.stat().st_size > Config.MAX_DOWNLOAD_MB * 1024 * 1024:
+                        raise MusicError('This audio exceeds the download size limit.')
+                    await validate_audio(temporary, Config.MAX_TRACK_MINUTES * 60)
+                    temporary.replace(path)
+                finally:
+                    temporary.unlink(missing_ok=True)
             try:
-                os.remove(_tmp)
-            except OSError:
-                pass
-
-
-@_b1.on_message(filters.command(["play"], ["", "/"]) & ~filters.private)
-async def _ss(_c, _m):
-    try:
-        await _m.delete()
+                await validate_audio(path, Config.MAX_TRACK_MINUTES * 60)
+            except MusicError:
+                path.unlink(missing_ok=True)
+                raise
+            title = getattr(attachment, 'title', None) or getattr(attachment, 'file_name', None) or 'Your audio'
+            seconds = attachment.duration or 0
+            duration = f'{seconds // 60}:{seconds % 60:02d}'
+            link, thumbnail = '', 'assets/lounge.jpg'
+        else:
+            path, title, duration, link, thumbnail = await resolve_audio(query or ' '.join(message.command[1:]))
+        stream = MediaStream(str(path), video_flags=MediaStream.Flags.IGNORE, audio_parameters=AudioQuality.HIGH)
+        async with chat_locks[chat_id]:
+            if version != request_versions[chat_id]:
+                return await status.edit('◇ Request cancelled. The session was stopped.')
+            if len(queues.get(chat_id, [])) >= Config.MAX_QUEUE_SIZE:
+                return await status.edit('The queue is full.')
+            if not queues.get(chat_id):
+                # Ensure the assistant is in the group before the first join attempt.
+                try:
+                    await assistant.get_chat_member(chat_id, assistant.id)
+                except errors.UserNotParticipant:
+                    invite = message.chat.username or await client.export_chat_invite_link(chat_id)
+                    await assistant.join_chat(invite)
+                try:
+                    await voice.join_vc(chat_id, stream)
+                except NoActiveGroupCall:
+                    await client.invoke(CreateGroupCall(peer=await client.resolve_peer(chat_id), random_id=random.randint(1, 2**31-1)))
+                    await voice.join_vc(chat_id, stream)
+            requested_by = selection_name(user)
+            position = await enqueue(chat_id, stream, title, duration, link, thumbnail, 'Audio', message.chat.title, '', requested_by)
+            track = queues[chat_id][-1]
+            track['is_owner'] = is_owner(user)
+            if track['is_owner']:
+                log.info('Creator selection · Rishabh Anand · %s', 'Playing' if position == 0 else 'Queued')
+            thumbs = getattr(attachment, 'thumbs', None) if attachment else None
+            if thumbs:
+                track['telegram_thumbnail'] = thumbs[-1].file_id
+            if position == 0:
+                await mark_active(chat_id, 'Audio')
+    except MusicError as exc:
+        return await status.edit(str(exc), parse_mode=ParseMode.DISABLED)
     except Exception:
-        pass
+        log.warning('Could not prepare or start audio in chat %s', chat_id)
+        return await status.edit('Unable to start this song. Open a voice chat, allow the assistant to join and speak, then try /play again.')
 
-    _cid = _m.chat.id
-    _uid = _m.from_user.id
-    _uname = _m.from_user.first_name
-    _bot_name = _c.me.first_name if _c.me else "Music Bot"
+    # The next request and voice controls do not wait for cover downloads/rendering.
+    background_notice(play_notice(client, message, status, track))
+    try:
+        await save_user(user.id, user.first_name)
+        await increment_play_count(user.id)
+        await save_chat(chat_id)
+    except Exception:
+        log.warning('Playback started; statistics could not be saved')
 
-    await _asu(_uid, _uname)
 
-    _cn = _m.chat.title
-    _cl = f"@{_m.chat.username}" if _m.chat.username else "Private Chat"
-    _rb = (
-        (f"@{_m.from_user.username}" if _m.from_user.username else _m.from_user.mention)
-        if _m.from_user
-        else "Anonymous User"
-    )
-
-    _rp = _m.reply_to_message
-    _at = (_rp.audio or _rp.voice) if _rp else None
-
-    os.makedirs("downloads", exist_ok=True)
-
-    # ---------------------------------------------------------------- source
-    if _at:
-        _aux = await _m.reply_text(f"**🔄 {_gb('pr')}...**")
-        _lk = _rp.link if hasattr(_rp, "link") else "Telegram Audio"
-
-        try:
-            _ti = _at.title or _at.file_name
-        except Exception:
-            _ti = "Telegram Audio"
-        _du = int(getattr(_at, "duration", 0) or 0)
-
-        try:
-            _ext = "ogg" if isinstance(_at, Voice) else _at.file_name.split(".")[-1]
-        except Exception:
-            _ext = "ogg"
-        _fp = os.path.join(os.path.realpath("downloads"), f"{_at.file_unique_id}.{_ext}")
-
-        if not os.path.exists(_fp):
+async def play_notice(client, message, status, track):
+    temporary = None
+    try:
+        if track.get('telegram_thumbnail'):
+            import uuid
+            temporary = Path('downloads') / f'cover_{uuid.uuid4().hex}.jpg'
             try:
-                await _aux.edit(f"**⬇️ {_gb('d')}...**")
-                await _rp.download(file_name=_fp)
+                await asyncio.wait_for(client.download_media(track['telegram_thumbnail'], file_name=str(temporary.resolve())), 5)
+                if temporary.exists():
+                    track['thumbnail'] = str(temporary.resolve())
             except Exception:
-                return await _aux.edit("**❌ Download failed.**")
-
-        _th = _C.START_IMAGE_URL
-        _meta = {}
-    else:
-        if len(_m.command) < 2:
-            return await _m.reply_text("**⚠️ Please provide a song name or link.**")
-
-        _qr = " ".join(_m.command[1:])
-        _aux = await _m.reply_text(f"**🔄 {_gb('pr')}...**")
-
-        # REMOVED: youtubesearchpython ka VideosSearch block.
-        # _dm() khud /youtube endpoint hit karta hai jo already YouTube search
-        # karta hai — hum do baar search kar rahe the, 3-15 sec extra latency.
-        try:
-            _res = await _dm_full(_qr)
-        except Exception as _e:
-            return await _aux.edit(f"**❌ Error: {_e}**")
-
-        if not _res:
-            return await _aux.edit("**❌ Song not found.**")
-
-        _fp = _res["path"]
-        _ti = _res["title"]
-        _du = _res["duration"]
-        _lk = _res["link"]
-        _th = _res["thumbnail"]
-        _meta = _res
-
-    # ------------------------------------------------- thumbnail (stream se pehle)
-    try:
-        await _aux.edit("**🎨 Generating Thumbnail...**")
-    except Exception:
-        pass
-    _th = await _build_thumb(_th, _ti, _du, _rb, _bot_name, _meta)
-    _gen_thumb = _th if str(_th).startswith("downloads") else None
-
-    # ------------------------------------------------------------ mediastream
-    # ffmpeg reconnect flags yahan NAHI chahiye — _dm() file ko local disk par
-    # download karta hai, live HTTP stream nahi hai.
-    _ms = MediaStream(
-        media_path=_fp,
-        video_flags=MediaStream.Flags.IGNORE,
-        audio_parameters=_audio_params(),
-    )
-    _st = "Audio"
-
-    # ------------------------------------------------------------------ join
-    if _cid not in _q:
-        try:
+                pass
+        artwork = await artwork_for(track)
+        track['artwork_path'] = artwork
+        queue = queues.get(message.chat.id, [])
+        position = next((i for i, item in enumerate(queue) if item['media_stream'] is track['media_stream']), None)
+        # An old preparation notice must not claim that a stopped/skipped song is playing.
+        if position is None:
             try:
-                await _c1.join_vc(_cid, _ms)
-            except NoActiveGroupCall:
-                try:
-                    _peer = await _b1.resolve_peer(_cid)
-                    await _b1.invoke(
-                        CreateGroupCall(peer=_peer, random_id=random.randint(10000, 999999999))
-                    )
-                    await asyncio.sleep(1)
-                except Exception:
-                    pass
-
-                try:
-                    try:
-                        await _b1.get_chat_member(_cid, _a1.id)
-                    except errors.UserNotParticipant:
-                        try:
-                            _il = _m.chat.username or await _c.export_chat_invite_link(_cid)
-                            await _a1.join_chat(_il)
-                        except Exception:
-                            return await _aux.edit("**⚠️ Failed to invite Assistant.**")
-                    except errors.ChatAdminRequired:
-                        return await _aux.edit(
-                            "**⚠️ Make me admin so I can auto-start Voice Chats!**"
-                        )
-
-                    try:
-                        await _c1.join_vc(_cid, _ms)
-                    except NoActiveGroupCall:
-                        return await _aux.edit(
-                            "**❌ Could not start the Voice Chat. Please start it manually.**"
-                        )
-                except Exception as _e:
-                    return await _aux.edit(f"**❌ Error: {_e}**")
-            except TelegramServerError:
-                return await _aux.edit("⚠️ **Telegram Server Error.**")
-        except Exception as _e:
-            return await _aux.edit(f"❌ **Stream failed.**\n\n`{_e}`")
-
-    # ----------------------------------------------------------------- queue
-    _pos = await _atq(_cid, _ms, _ti, _du, _lk, _th, _st, _cn, _cl, _rb, _meta)
-
-    _meta.setdefault("title", _ti)
-    _meta.setdefault("duration", _du)
-    _meta.setdefault("link", _lk)
-
-    # PURANI caption mein "{_C._e} {_gb('p')}" se "Alice Alice Now Playing"
-    # duplicate ho raha tha, aur "{_C._f}" footer add karta tha.
-    # Ab dono captions helpers/captions.py se aati hain.
-    _cap = now_playing(_meta, _rb) if _pos == 0 else queued(_meta, _rb, _pos)
-
-    _btn = InlineKeyboardMarkup([[InlineKeyboardButton("✖️ Close", callback_data="alice_close")]])
-
-    try:
-        await _aux.delete()
-    except Exception:
-        pass
-
-    try:
-        await _m.reply_photo(photo=_th, caption=_cap,
-                             parse_mode=ParseMode.HTML, reply_markup=_btn)
-    except Exception as _e:
-        print(f"Failed to send thumbnail: {_e}")
-        await _m.reply_photo(photo=_C.START_IMAGE_URL, caption=_cap,
-                             parse_mode=ParseMode.HTML, reply_markup=_btn)
-
-    if _cid != _C.LOG_GROUP_ID:
+                await status.delete()
+            except Exception:
+                pass
+            return
+        caption = track_card(track, position)
         try:
-            await _c.send_photo(_C.LOG_GROUP_ID, photo=_th, caption=_cap,
-                                parse_mode=ParseMode.HTML)
+            await message.reply_photo(artwork, caption=caption, parse_mode=ParseMode.HTML, reply_markup=controls())
+            await status.delete()
         except Exception:
-            pass
-
-    await _inc_played(_uid)
-
-    if _pos == 0:
-        await _aac_fn(_cid, _st)
-
-    # generated thumbnail ab bhej di gayi hai -> disk se hata do
-    # (har play ek 1280x720 PNG banata hai; warna downloads/ bharta rehta hai)
-    if _gen_thumb and os.path.exists(_gen_thumb):
-        try:
-            os.remove(_gen_thumb)
-        except OSError:
-            pass
-
-    await _asc(_cid)
+            await status.edit(caption, parse_mode=ParseMode.HTML, reply_markup=controls())
+    finally:
+        if temporary:
+            temporary.unlink(missing_ok=True)

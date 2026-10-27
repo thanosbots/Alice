@@ -1,18 +1,10 @@
-# ntgcalls yahan se HATA diya gaya hai. py-tgcalls usko khud ek exact
-# pinned version ke saath laata hai (native binary, ABI strict hai).
-# Dono ko alag-alag unpinned likhne se pip mismatched build utha sakta hai.
-py-tgcalls==2.2.11
-
-pyrofork
-tgcrypto
-
-motor
-pymongo
-dnspython
-
-aiohttp
-Pillow
-python-dotenv
-
-# REMOVED: youtube-search-python
-# ab unmaintained hai, aur play.py mein duplicate YouTube search kar rahi thi
+pyrofork==2.3.69
+motor==3.7.1
+tgcrypto==1.2.5
+py-tgcalls==3.0.0
+ntgcalls==3.0.5
+aiohttp==3.14.5
+pymongo==4.19.0
+dnspython==2.9.0
+Pillow==13.0.0
+python-dotenv==1.2.4

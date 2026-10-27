@@ -1,136 +1,76 @@
+import random
+from html import escape
+from helpers.style import card
+from helpers.identity import is_owner, owner_note
 from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import _C, HELP_DICT # Added HELP_DICT import
-from core.clients import _b1, _c1
-from helpers.queue import _cs, _pq, _aac_fn, _q
+from pyrogram.enums import ParseMode
+from core.clients import bot, voice
+from helpers.queue import queues, stop_playback, chat_locks, repeat_modes
+from helpers.player import advance, is_dj, queue_text
 
-# Registering the Admin commands to the dynamic Help Menu!
-HELP_DICT["⚙️ Admin"] = """**⚙️ Admin & Control Commands**
-
-`/pause` - Pause the currently playing stream
-`/resume` - Resume the paused stream
-`/skip` or `/next` - Skip to the next track in the queue
-`/end` or `/stop` - Stop playback, clear queue, and make the bot leave"""
-
-@_b1.on_message(filters.command(["pause"], ["/"]) & ~filters.private)
-async def _ps(_c, _m):
-    try:
-        await _m.delete()
-    except:
-        pass
-    
-    _cid = _m.chat.id
-    
-    if _cid not in _q:
-        return await _m.reply_text("❎ **No active stream.**")
-    
-    await _c1.pause_stream(_cid)
-    
-    # Cleaned up response
-    await _m.reply_text("**✅ Stream Paused.**")
-
-
-@_b1.on_message(filters.command(["resume"], ["/"]) & ~filters.private)
-async def _rs(_c, _m):
-    try:
-        await _m.delete()
-    except:
-        pass
-    
-    _cid = _m.chat.id
-    
-    if _cid not in _q:
-        return await _m.reply_text("❎ **No active stream.**")
-    
-    await _c1.resume_stream(_cid)
-    
-    # Cleaned up response
-    await _m.reply_text("**✅ Stream Resumed.**")
-
-
-@_b1.on_message(filters.command(["skip", "next"], ["/"]) & ~filters.private)
-async def _sks(_c, _m):
-    try:
-        await _m.delete()
-    except:
-        pass
-    
-    _cid = _m.chat.id
-    bot_name = _c.me.first_name if _c.me else "Music Bot"
-    
-    if _cid not in _q:
-        return await _m.reply_text("⚠️ **No active stream.**")
-    
-    await _pq(_cid)
-    _qd = _q.get(_cid)
-    
-    if not _qd:
-        await _cs(_cid)
+async def action(client, chat_id, user, command, args):
+    if command in ('queue', 'now'):
+        return queue_text(chat_id) if command == 'queue' else (f"Now playing: {queues[chat_id][0]['title']}" if queues.get(chat_id) else 'Nothing is playing.')
+    if not await is_dj(client, chat_id, user):
+        return 'Only group admins can change playback or edit the queue.'
+    async with chat_locks[chat_id]:
+        if command in ('stop', 'end'):
+            await stop_playback(chat_id)
+            return '◇ Session closed. Playback and pending requests cleared.'
+        queue = queues.get(chat_id)
+        if not queue:
+            return 'Nothing is playing. Use /play first.'
+        if command == 'pause':
+            await voice.pause_stream(chat_id)
+            return 'Playback paused.'
+        if command == 'resume':
+            await voice.resume_stream(chat_id)
+            return 'Playback resumed.'
+        if command in ('skip', 'next'):
+            await advance(chat_id, manual=True)
+            return 'Skipped.'
+        if command == 'shuffle':
+            upcoming = queue[1:]
+            random.shuffle(upcoming)
+            queue[1:] = upcoming
+            return 'Upcoming tracks shuffled.'
+        if command == 'clearqueue':
+            del queue[1:]
+            return 'Upcoming tracks cleared.'
+        if command == 'repeat':
+            if len(args) != 1 or args[0] not in ('off', 'one', 'all'):
+                return 'Usage: /repeat off|one|all'
+            repeat_modes[chat_id] = args[0]
+            return f'Repeat: {args[0]}'
         try:
-            await _c1.leave_vc(_cid)
-        except:
-            pass
-        return await _m.reply_text(f"**❎ Queue empty. {bot_name} left the VC.**")
-    
-    _aux = await _m.reply_text("**🔄 Processing Next...**")
-    
-    _ms = _qd[0].get("media_stream")
-    _ti = _qd[0].get("title")
-    _du = _qd[0].get("duration")
-    _lk = _qd[0].get("link")
-    _th = _qd[0].get("thumbnail")
-    _st = _qd[0].get("stream_type")
-    _rb = _qd[0].get("requested_by")
-    
-    try:
-        await _c1.join_vc(_cid, _ms)
-    except Exception as e:
-        await _cs(_cid)
-        try:
-            await _c1.leave_vc(_cid)
-        except:
-            pass
-        return await _aux.edit(f"**❌ Failed to skip:** `{e}`")
-    
-   
-    _cap = f"""**✅ Skipped. ✨ {bot_name} Now Playing Next:**
+            positions = [int(a) for a in args]
+            if len(positions) != (2 if command == 'move' else 1):
+                raise ValueError
+            if any(p < 1 or p >= len(queue) for p in positions):
+                raise ValueError
+        except ValueError:
+            return 'Use valid upcoming queue positions: /remove 2 or /move 3 1'
+        item = queue.pop(positions[0])
+        if command == 'move':
+            queue.insert(positions[1], item)
+            return 'Queue reordered.'
+        return f'Removed: {item["title"]}'
 
-**🏷 Title:** [{_ti[:40]}]({_lk})
-**⏱ Duration:** {_du} Minutes
-**👤 Requested By:** {_rb}"""
-    
-    _btn = InlineKeyboardMarkup([[InlineKeyboardButton("✖️ Close", callback_data="alice_close")]])
-    
+@bot.on_message(filters.command(['pause','resume','skip','next','stop','end','queue','now','shuffle','repeat','remove','move','clearqueue']) & filters.group)
+async def player_command(client, message):
     try:
-        await _aux.delete()
-    except:
-        pass
-    
-    try:
-        await _m.reply_photo(photo=_th, caption=_cap, reply_markup=_btn)
-    except:
-        await _m.reply_photo(photo=_C.START_IMAGE_URL, caption=_cap, reply_markup=_btn)
-    
-    await _aac_fn(_cid, _st)
+        text = await action(client, message.chat.id, message.from_user, message.command[0].lower(), message.command[1:])
+    except Exception:
+        text = 'Unable to update playback. Check the voice chat and bot permissions.'
+    await message.reply_text(card('At your service, Rishabh' if is_owner(message.from_user) else 'The listening room', '<blockquote>' + escape(text[:3200]) + '</blockquote>', owner_note(message.from_user)), parse_mode=ParseMode.HTML)
 
-
-@_b1.on_message(filters.command(["end", "stop"], ["/"]) & ~filters.private)
-async def _es(_c, _m):
+@bot.on_callback_query(filters.regex(r'^music_(pause|resume|skip|stop|queue)$'))
+async def player_button(client, query):
+    if not query.message:
+        return await query.answer('This control is unavailable.', show_alert=True)
+    await query.answer()
     try:
-        await _m.delete()
-    except:
-        pass
-    
-    _cid = _m.chat.id
-    bot_name = _c.me.first_name if _c.me else "Music Bot"
-    
-    if _cid not in _q:
-        return await _m.reply_text("❎ **No active stream.**")
-    
-    await _cs(_cid)
-    try:
-        await _c1.leave_vc(_cid)
-    except:
-        pass
-   
-    await _m.reply_text(f"**✅ Stream stopped and {bot_name} cleared the queue.**")
+        text = await action(client, query.message.chat.id, query.from_user, query.data[6:], [])
+    except Exception:
+        text = 'Unable to update playback. Check the voice chat and bot permissions.'
+    await query.message.reply_text(card('At your service, Rishabh' if is_owner(query.from_user) else 'The listening room', '<blockquote>' + escape(text[:3200]) + '</blockquote>', owner_note(query.from_user)), parse_mode=ParseMode.HTML)

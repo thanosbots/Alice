@@ -1,118 +1,48 @@
-from pyrogram import filters, Client
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from config import _C, HELP_DICT  # Imports your empty dictionary from config
-from core.clients import _b1
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardMarkup as Keyboard, InlineKeyboardButton as Button
+from config import Config
+from core.clients import bot
+from helpers.access import private_owner
+from helpers.notifications import send_panel, cancel_decoration
+from helpers.style import home, home_buttons, help_screen, edit_panel, card
 
-@_b1.on_callback_query(filters.regex("alice_home"))
-async def _ahom(_c: Client, _q: CallbackQuery):
-    bot_name = _c.me.first_name if _c.me else "Music Bot"
-    
-    _cap = f"""**✨ Hello, I'm {bot_name}! ✨**
+@bot.on_message(filters.command('help'))
+async def help_command(client, message):
+    text, keyboard = help_screen(owner=private_owner(message.from_user, message.chat, Config.OWNER_ID))
+    await send_panel(client, message.chat.id, text, keyboard, image='assets/alice-help-v2.png')
 
-🎵 **Your personal music streaming assistant!**
-
-I can play high-quality audio and video in your Telegram voice chats with crystal-clear sound quality.
-
-**🎭 Features:**
-• ⚡ Lightning-fast streaming
-• 🎭 Zero lag playback  
-• 📝 Queue management
-• 🔄 24/7 availability
-
-╭─────────────────╮
-│ **📌 Version:** {_C._v}
-╰─────────────────╯"""
-    
-    _btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"➕ Add {bot_name}", url=f"https://t.me/{_b1.username}?startgroup=true")],
-        [
-            InlineKeyboardButton("Privacy Policy", callback_data="alice_privacy"), 
-            InlineKeyboardButton("Repo", url="https://github.com/thanosbots/Alice")                 
-        ],
-        [
-            InlineKeyboardButton("Support", url=_C.SUPPORT_GROUP),         
-            InlineKeyboardButton("Updates", url=_C.SUPPORT_CHANNEL)        
-        ],
-        [
-            InlineKeyboardButton("Help", callback_data="alice_help")    
-        ]
-    ])
-    
-    await _q.message.edit_text(text=_cap, reply_markup=_btn)
-    await _q.answer()
-
-@_b1.on_callback_query(filters.regex("alice_help"))
-async def _ahc(_c: Client, _q: CallbackQuery):
-    bot_name = _c.me.first_name if _c.me else "Music Bot"
-    
-    _cap = f"**🎵 {bot_name} Help Menu**\n\nChoose a category below to view its commands:"
-    
-    keyboard = []
-    row = []
-    
-    # Automatically builds buttons for every plugin you register in HELP_DICT
-    for category_name in HELP_DICT.keys():
-        row.append(InlineKeyboardButton(category_name, callback_data=f"hcat_{category_name}"))
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
-        
-    keyboard.append([InlineKeyboardButton("🔙 Back to Home", callback_data="alice_home")])
-    
-    await _q.message.edit_text(text=_cap, reply_markup=InlineKeyboardMarkup(keyboard))
-    await _q.answer()
-
-@_b1.on_callback_query(filters.regex(r"^hcat_(.*)"))
-async def _hcat(_c: Client, _q: CallbackQuery):
-    # Extracts the category name (like "▶️ Play") from the button click
-    category = _q.matches[0].group(1)
-    
-    if category in HELP_DICT:
-        text = f"**{category} Commands**\n\n{HELP_DICT[category]}"
-        
-        btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Back to Help", callback_data="alice_help")]
-        ])
-        
-        await _q.message.edit_text(text=text, reply_markup=btn)
-    await _q.answer()
-
-@_b1.on_callback_query(filters.regex("alice_privacy"))
-async def _privacy_callback(client: Client, query: CallbackQuery):
-    bot_name = client.me.first_name if client.me else "Music Bot"
-    
-    privacy_text = f"""**🔒 Privacy Policy for {bot_name}**
-
-To provide a seamless music streaming experience, we only collect the minimum data required:
-
-**1. User Identification:**
-We store your Telegram User ID and First Name solely to identify who requested a song and to manage active queues.
-
-**2. Music Queue Data:**
-We temporarily process the name of the song currently playing and the total number of songs played to manage the voice chat. 
-
-**3. No Message Logging:**
-We **do not** read, store, or log your personal messages or group chats. The bot only listens for its specific command prefixes.
-
-**4. Data Sharing:**
-Your data is never shared with or sold to third parties.
-
-By using this bot, you agree to these terms."""
-
-    back_btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Back", callback_data="alice_home")]
-    ])
-
-    await query.message.edit_text(text=privacy_text, reply_markup=back_btn)
+@bot.on_callback_query(filters.regex(r'^(alice_home|alice_help|alice_privacy|guide_\w+|hcat_.*)$'))
+async def navigation(client, query):
+    if not query.message:
+        return await query.answer()
+    owner = private_owner(query.from_user, query.message.chat, Config.OWNER_ID)
+    data = query.data
+    if (data.startswith('guide_owner_') or data.startswith('hcat_')) and not owner:
+        return await query.answer('This page is unavailable.', show_alert=True)
     await query.answer()
+    if data == 'alice_home':
+        text = home(client.me.first_name if client.me else 'Alice', owner=owner)
+        keyboard = home_buttons(bot.username, Config.SUPPORT_GROUP, owner=owner)
+    elif data == 'alice_privacy':
+        text = card('Privacy, plainly', '<blockquote>Your listening room, explained.</blockquote>\n'
+                    'The bot stores user and group IDs, names, and play counts. '
+                    'Queues are held in memory; downloaded audio and artwork are cached on the host. '
+                    'Start and playback notices may be sent to the configured operator log group. '
+                    'Search terms are sent to the music service to find tracks.\n\nContact the operator for data removal.')
+        keyboard = Keyboard([[Button('‹ Lounge', callback_data='alice_home')]])
+    else:
+        # Old category callbacks never reveal the former unrestricted registry.
+        legacy = {'hcat_📊 Analytics': 'owner_stats', 'hcat_🗄 DB Admin': 'owner_database',
+                  'hcat_📣 Broadcast': 'owner_broadcast', 'hcat_🎛 Player': 'controls'}
+        page = legacy.get(data, data[6:] if data.startswith('guide_') else None)
+        text, keyboard = help_screen(page, owner=owner)
+    await edit_panel(query.message, text, keyboard, image=(
+        'assets/alice-start-v2.png' if data in ('alice_home', 'alice_privacy')
+        else 'assets/alice-help-v2.png'))
 
-@_b1.on_callback_query(filters.regex("alice_close"))
-async def _acl(_c: Client, _q: CallbackQuery):
-    bot_name = _c.me.first_name if _c.me else "Music Bot"
-    try:
-        await _q.message.delete()
-    except:
-        pass
-    await _q.answer(f"✨ {bot_name} says goodbye!")
+@bot.on_callback_query(filters.regex('^alice_close$'))
+async def close_panel(client, query):
+    await query.answer()
+    if query.message:
+        cancel_decoration(query.message)
+        await query.message.delete()

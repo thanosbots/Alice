@@ -2,7 +2,7 @@ import time
 
 _st = time.time()
 
-def _gu():
+def uptime():
     _s = int(time.time() - _st)
     _m, _s = divmod(_s, 60)
     _h, _m = divmod(_m, 60)
@@ -16,7 +16,3 @@ def _gu():
         return f"{_m}m {_s}s"
     else:
         return f"{_s}s"
-
-def _sd(_t: str) -> str:
-    _mp = str.maketrans("0123456789", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫")
-    return str(_t).translate(_mp)

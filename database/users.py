@@ -1,31 +1,27 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import _C
+from config import Config
 
-_mc = AsyncIOMotorClient(_C.MONGO_URL)
-_db = _mc["AliceMusicBot"]
-_udb = _db.users
+mongo_client = AsyncIOMotorClient(Config.MONGO_URL)
+database = mongo_client["AliceMusicBot"]
+users_collection = database.users
 
-async def _isu(_uid: int) -> bool:
-    _u = await _udb.find_one({"user_id": _uid})
+async def user_exists(_uid: int) -> bool:
+    _u = await users_collection.find_one({"user_id": _uid})
     return bool(_u)
 
-async def _asu(_uid: int, name: str):
+async def save_user(_uid: int, name: str):
     """Adds a new user or updates the name of an existing one."""
-    if await _isu(_uid):
-        return await _udb.update_one({"user_id": _uid}, {"$set": {"name": name}})
-    return await _udb.insert_one({"user_id": _uid, "name": name, "played": 0})
+    if await user_exists(_uid):
+        return await users_collection.update_one({"user_id": _uid}, {"$set": {"name": name}})
+    return await users_collection.insert_one({"user_id": _uid, "name": name, "played": 0})
 
-async def _inc_played(_uid: int):
+async def increment_play_count(_uid: int):
     """Increments the play count for a user."""
-    return await _udb.update_one({"user_id": _uid}, {"$inc": {"played": 1}})
+    return await users_collection.update_one({"user_id": _uid}, {"$inc": {"played": 1}})
 
-async def _gsu() -> list:
+async def get_user_ids() -> list:
     """Returns a clean list of user IDs for broadcasting."""
     _ul = []
-    async for _u in _udb.find({"user_id": {"$gt": 0}}):
+    async for _u in users_collection.find({"user_id": {"$gt": 0}}):
         _ul.append(_u["user_id"])
     return _ul
-
-async def _get_user_stats(_uid: int):
-    """Returns the full document for a specific user."""
-    return await _udb.find_one({"user_id": _uid})

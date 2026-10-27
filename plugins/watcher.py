@@ -1,12 +1,12 @@
 from pyrogram import filters
-from core.clients import _b1
-from database.chats import _asc
+from core.clients import bot
+from database.chats import save_chat
 
 
-@_b1.on_message(filters.group, group=10)
+@bot.on_message(filters.group, group=10)
 async def _catch_existing_groups(_c, _m):
     try:
-   
-        await _asc(_m.chat.id)
+
+        await save_chat(_m.chat.id)
     except:
         pass
