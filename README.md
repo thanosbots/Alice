@@ -1,23 +1,14 @@
-<p align="center">
-  <img src="assets/alice-mark.svg" width="120" height="120" alt="Alice Music Bot logo">
+<img src="assets/alice-mark.svg" align="right" width="110" alt="Alice music bot — lavender headphones monogram">
+
+# Alice Music Bot — Telegram Music Bot Without a Music API Key
+
+<img src="assets/alice-waveform.gif" width="200" height="30" alt="Animated lavender and lime audio waveform">
+
+<p>
+  <strong>ALICE 2.0 · FREE TO USE · NO MUSIC API KEY NEEDED</strong>
 </p>
 
-<h1 align="center">Alice Music Bot</h1>
-
-<p align="center">
-  <strong>Telegram music. No music API key needed.</strong><br>
-  Alice 2.0 · Free to use · Self-hosted
-</p>
-
-<p align="center">
-  <img src="assets/alice-waveform.gif" width="240" height="36" alt="Animated music waveform">
-</p>
-
-<p align="center">
-  <a href="https://alicemusic.online/getting-started.html">Get started</a> ·
-  <a href="https://alicemusic.online/deployment.html">Deploy</a> ·
-  <a href="https://t.me/thanosprosss">Support</a>
-</p>
+<img src="assets/icons/chat.svg" width="16" height="16" align="center" alt=""> [Support ↗](https://t.me/thanosprosss) &nbsp; / &nbsp; <img src="assets/icons/announcement.svg" width="16" height="16" align="center" alt=""> [Updates ↗](https://t.me/THANOS_PRO) &nbsp; / &nbsp; <img src="assets/icons/code.svg" width="16" height="16" align="center" alt=""> [Developer ↓](#developer)
 
 **Your group. Your music. No paid music API.**
 
@@ -26,19 +17,21 @@
 > **100% free to use. No music API key needed.**  
 > Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are still required.
 
-Current release: **2.1.0** · Alice 2.x series.
+Current code release: **2.1.0**, part of the Alice 2.x series.
 
 [Get started](https://alicemusic.online/getting-started.html) · [Deploy Alice](https://alicemusic.online/deployment.html) · [Command guide](https://alicemusic.online/commands.html)
 
 ## What can Alice do?
 
-Song search and playback from supported song links.  
-Telegram audio files and voice messages.  
-Queue management, shuffle, repeat and admin playback controls.  
-Song artwork and player cards with a charcoal and gold design.  
-Private owner tools for statistics, broadcasts and database management.  
+<img src="assets/icons/search.svg" width="16" height="16" align="center" alt=""> Song search and playback from supported song links.  
+<img src="assets/icons/audio.svg" width="16" height="16" align="center" alt=""> Telegram audio files and voice messages.  
+<img src="assets/icons/queue.svg" width="16" height="16" align="center" alt=""> Queue management, shuffle, repeat and admin playback controls.  
+<img src="assets/icons/artwork.svg" width="16" height="16" align="center" alt=""> Song artwork and player cards with a charcoal and gold design.  
+<img src="assets/icons/shield.svg" width="16" height="16" align="center" alt=""> Private owner tools for statistics, broadcasts and database management.  
 
-## Documentation
+<br clear="both">
+
+## <img src="assets/icons/book.svg" width="20" height="20" align="center" alt=""> Documentation
 
 Commands, deployment, configuration and troubleshooting are in the **[Alice documentation ↗](https://alicemusic.online)**.
 
@@ -62,14 +55,14 @@ bash start.sh
 
 Add the bot and assistant account to your group, grant the permissions described in the [getting started guide](https://alicemusic.online/getting-started.html), and open a voice chat.
 
-### Everyday commands
-
-- **Play:** `/play song name` — play a song or add it to the queue.
-- **Search:** `/search song name` — choose a matching song.
-- **Queue:** `/queue` — view upcoming tracks.
-- **Playback:** `/pause` and `/resume`.
-- **Skip or stop:** `/skip` and `/stop`.
-- **Queue modes:** `/shuffle` and `/repeat`.
+| Command | What it does |
+| :--- | :--- |
+| `/play song name` | Find a song and play it or add it to the queue |
+| `/search song name` | Choose from matching songs |
+| `/queue` | View upcoming tracks |
+| `/pause`, `/resume` | Control playback |
+| `/skip`, `/stop` | Move to the next track or end playback |
+| `/shuffle`, `/repeat` | Change how the queue plays |
 
 You can also reply to a Telegram audio file or voice message with `/play`. Playback and queue edits are restricted to group admins or the configured bot owner.
 
@@ -93,7 +86,7 @@ Use a [Linux VPS](https://alicemusic.online/deploy-vps.html), [local Linux machi
 
 <a id="developer"></a>
 
-## Developer
+## <img src="assets/icons/code.svg" width="20" height="20" align="center" alt=""> Developer
 
 ### Rishabh Anand
 
@@ -101,12 +94,19 @@ Use a [Linux VPS](https://alicemusic.online/deploy-vps.html), [local Linux machi
 
 I build Telegram bots and automation tools in Python. Alice and [CipherElite ↗](https://github.com/rishabhops/CipherElite) are my projects under Thanos Pro.
 
-- GitHub: [@rishabhops](https://github.com/rishabhops)
-- Telegram: [@thanosceo](https://t.me/thanosceo)
-- Instagram: [@xrishabhanand](https://www.instagram.com/xrishabhanand/)
-- LinkedIn: [Rishabh Anand](https://www.linkedin.com/in/xrishabhanand/)
+<p>
+  <a href="https://github.com/rishabhops"><img src="assets/icons/github.svg" width="16" height="16" align="center" alt=""> <strong>GitHub ↗</strong></a>
+  &nbsp;&nbsp; / &nbsp;&nbsp;
+  <a href="https://t.me/thanosceo"><img src="assets/icons/telegram.svg" width="16" height="16" align="center" alt=""> <strong>Telegram ↗</strong></a>
+  &nbsp;&nbsp; / &nbsp;&nbsp;
+  <a href="https://www.instagram.com/xrishabhanand/"><img src="assets/icons/instagram.svg" width="16" height="16" align="center" alt=""> <strong>Instagram ↗</strong></a>
+  &nbsp;&nbsp; / &nbsp;&nbsp;
+  <a href="https://www.linkedin.com/in/xrishabhanand/"><img src="assets/icons/linkedin.svg" width="16" height="16" align="center" alt=""> <strong>LinkedIn ↗</strong></a>
+</p>
 
-## Co-developers
+<sub>@rishabhops on GitHub · @thanosceo on Telegram · @xrishabhanand on Instagram & LinkedIn</sub>
+
+## <img src="assets/icons/people.svg" width="20" height="20" align="center" alt=""> Co-developers
 
 ### Chetan Anand
 
@@ -125,33 +125,32 @@ Co-developer · Alice Music Bot
 - GitHub: [shreyaslande](https://github.com/shreyaslande)
 - LinkedIn: [Shreyas Lande](https://www.linkedin.com/in/shreyas-lande-83a19b304)
 
-## Support & community
+## <img src="assets/icons/chat.svg" width="20" height="20" align="center" alt=""> Support & community
 
 **Talk to us. Stay in the loop.**
 
-**[Join the conversation ↗](https://t.me/thanosprosss)**  
+<img src="assets/icons/chat.svg" width="16" height="16" align="center" alt=""> **[Join the conversation ↗](https://t.me/thanosprosss)**  
 Questions, bug reports and feedback — our Telegram support group.
 
-**[Follow Thanos Pro ↗](https://t.me/THANOS_PRO)**  
+<img src="assets/icons/announcement.svg" width="16" height="16" align="center" alt=""> **[Follow Thanos Pro ↗](https://t.me/THANOS_PRO)**  
 Project news and release updates.
 
-**[Message me ↗](https://t.me/thanosceo)**  
+<img src="assets/icons/mail.svg" width="16" height="16" align="center" alt=""> **[Message me ↗](https://t.me/thanosceo)**  
 Get in touch directly on Telegram.
 
 If you enjoy using Alice, leave a star on the repository or share it with your friends. Bug reports and contributions are welcome too.
 
-## Credits
+## <img src="assets/icons/heart.svg" width="20" height="20" align="center" alt=""> Credits
 
 Thanks to the projects that make Alice possible:
 
-**Telegram & voice**  
-[Pyrofork ↗](https://github.com/Mayuri-Chan/pyrofork) · [Py-TgCalls ↗](https://github.com/pytgcalls/pytgcalls) · [NTgCalls ↗](https://github.com/pytgcalls/ntgcalls)
+<img src="assets/icons/wave.svg" width="16" height="16" align="center" alt=""> **Telegram & voice**  
+[Pyrofork ↗](https://github.com/Mayuri-Chan/pyrofork) &nbsp; · &nbsp; [Py-TgCalls ↗](https://github.com/pytgcalls/pytgcalls) &nbsp; · &nbsp; [NTgCalls ↗](https://github.com/pytgcalls/ntgcalls)
 
-**Audio, storage & artwork**  
-[FFmpeg ↗](https://ffmpeg.org/) · [MongoDB ↗](https://www.mongodb.com/) · [Pillow ↗](https://python-pillow.github.io/)
+<img src="assets/icons/artwork.svg" width="16" height="16" align="center" alt=""> **Audio, storage & artwork**  
+[FFmpeg ↗](https://ffmpeg.org/) &nbsp; · &nbsp; [MongoDB ↗](https://www.mongodb.com/) &nbsp; · &nbsp; [Pillow ↗](https://python-pillow.github.io/)
 
 ---
 
 **Alice Music Bot · Thanos Pro**  
 Rishabh Anand · Chetan Anand · Shreyas Lande
-
