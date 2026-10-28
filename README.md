@@ -10,12 +10,22 @@
 
 <img src="assets/icons/chat.svg" width="16" height="16" align="center" alt=""> [Support ↗](https://t.me/thanosprosss) &nbsp; / &nbsp; <img src="assets/icons/announcement.svg" width="16" height="16" align="center" alt=""> [Updates ↗](https://t.me/THANOS_PRO) &nbsp; / &nbsp; <img src="assets/icons/code.svg" width="16" height="16" align="center" alt=""> [Developer ↓](#developer)
 
+## <img src="assets/icons/telegram.svg" width="20" height="20" align="center" alt=""> Try Alice now
+
+**Already hosted. Ready for your group.**
+
+Use our deployed bot **[@alice2music_bot](https://t.me/alice2music_bot)** on Telegram—no server setup or personal API credentials needed to try it.
+
+**[Open Alice on Telegram ↗](https://t.me/alice2music_bot)** · **[Add Alice to your group ↗](https://t.me/alice2music_bot?startgroup=true)**
+
+Open the bot and tap **Start**, then add it to your group and follow its setup instructions. Once the group voice chat and required permissions are ready, use `/play song name` to start listening. Want your own instance? Follow the deployment guide below.
+
 **Your group. Your music. No paid music API.**
 
 **Alice 2.0** is a free, self-hosted **Telegram music bot** for group voice chats. Search for songs, share supported music links, or play Telegram audio with queue controls and custom player cards. Built in Python with Pyrofork and Py-TgCalls, Alice handles music lookup inside the bot—there is no separate music API server to deploy or music API key to buy.
 
 > **100% free to use. No music API key needed.**  
-> Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are still required.
+> Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are required only when hosting your own instance.
 
 Current code release: **2.1.0**, part of the Alice 2.x series.
 
