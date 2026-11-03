@@ -1,3 +1,6 @@
+import base64
+from Crypto.Cipher import DES
+from Crypto.Util.Padding import pad
 import asyncio
 import tempfile
 import unittest
@@ -7,8 +10,12 @@ from unittest.mock import AsyncMock
 from helpers.catalog import MusicClient, MusicError
 
 
+def envelope(url):
+    return base64.b64encode(DES.new(b'38346591', DES.MODE_ECB).encrypt(pad(url.encode(), 8))).decode()
+
+
 def song(song_id='abc12345'):
-    return dict(id=song_id, type='song', title='Song &amp; Title', perma_url='https://www.jiosaavn.com/song/title/token', image='https://c.saavncdn.com/150x150.jpg', more_info={'duration': '200', '320kbps': 'true', 'encrypted_media_url': 'opaque', 'artistMap': {'primary_artists': [{'name': 'Singer'}]}})
+    return dict(id=song_id, type='song', title='Song &amp; Title', perma_url='https://www.jiosaavn.com/song/title/token', image='https://c.saavncdn.com/150x150.jpg', more_info={'duration': '200', '320kbps': 'true', 'encrypted_media_url': envelope('https://aac.saavncdn.com/song_96.mp4'), 'artistMap': {'primary_artists': [{'name': 'Singer'}]}})
 
 class Content:
     def __init__(self, chunks): self.chunks = chunks
@@ -77,7 +84,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         path = await self.client.download(track)
         self.assertEqual(Path(path).stat().st_size, 2048)
         self.assertEqual(await self.client.download(track), path)
-        self.client.request.assert_awaited_once()
+        self.client.request.assert_not_awaited()
         self.assertEqual(list(Path(self.temp.name).glob('*.part')), [])
 
     async def test_size_limit_removes_partial(self):
@@ -92,14 +99,32 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(list(Path(self.temp.name).iterdir()), [])
 
     async def test_untrusted_stream_rejected(self):
-        self.client.request.return_value = {'auth_url': 'http://127.0.0.1/private'}
-        with self.assertRaises(MusicError): await self.client.download(self.client.track(song()))
+        track = self.client.track(song())
+        track['encrypted_url'] = envelope('http://127.0.0.1/private')
+        with self.assertRaises(MusicError): await self.client.download(track)
 
     async def test_simultaneous_requests_share_download(self):
         track = await self.prepare_download([b'x' * 2048])
         first, second = await asyncio.gather(self.client.download(track), self.client.download(track))
         self.assertEqual(first, second)
-        self.client.request.assert_awaited_once()
+        self.client.request.assert_not_awaited()
+
+    async def test_local_resolver_quality_and_https(self):
+        for quality in (96, 160, 320):
+            result = self.client.media_url(envelope('http://aac.saavncdn.com/42/song_96.mp4'), quality)
+            self.assertEqual(result, f'https://aac.saavncdn.com/42/song_{quality}.mp4')
+
+    async def test_malformed_and_untrusted_envelopes(self):
+        for value in (None, '', 'not-base64', envelope('https://saavncdn.com.evil.test/song_96.mp4'),
+                      envelope('https://user:secret@aac.saavncdn.com/song_96.mp4')):
+            with self.subTest(value=value), self.assertRaises(MusicError):
+                self.client.media_url(value, 320)
+
+    async def test_download_does_not_use_auth_endpoint(self):
+        track = await self.prepare_download([b'x' * 2048])
+        self.client.request = AsyncMock(side_effect=AssertionError('No auth endpoint expected'))
+        await self.client.download(track)
+        self.client.request.assert_not_awaited()
 
     async def test_transient_download_retries(self):
         from helpers.catalog import DownloadError

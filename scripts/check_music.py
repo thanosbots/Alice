@@ -1,12 +1,14 @@
 """Read-only provider smoke check; never connects to Telegram."""
 import asyncio
 import sys
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from helpers.catalog import MusicClient
 
 async def main():
-    provider = MusicClient()
+    scratch = tempfile.TemporaryDirectory(prefix="alice-music-check-")
+    provider = MusicClient(directory=scratch.name)
     try:
         tracks = await provider.search('Chaleya Arijit Singh', 3)
         if not tracks:
@@ -21,5 +23,6 @@ async def main():
         print(f'Audio download OK: {path} ({Path(path).stat().st_size} bytes)')
     finally:
         await provider.close()
+        scratch.cleanup()
 
 asyncio.run(main())

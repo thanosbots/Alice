@@ -20,6 +20,6 @@ if [[ ! -f Config.env ]]; then
   cp Config.env.example Config.env
   echo 'Fill in your Telegram and MongoDB settings in Config.env.'
 fi
-echo 'Setup complete. Music needs no API key or extra service.'
+echo 'Setup complete. The local music resolver is installed inside Alice; no Docker, API key or separate music service is needed.'
 echo 'Verify music: .venv/bin/python scripts/check_music.py'
 echo 'Start bot: ./start.sh'

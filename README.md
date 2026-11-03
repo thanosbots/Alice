@@ -27,7 +27,7 @@ Open the bot and tap **Start**, then add it to your group and follow its setup i
 > **100% free to use. No music API key needed.**  
 > Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are required only when hosting your own instance.
 
-Current code release: **2.1.0**, part of the Alice 2.x series.
+Current code release: **2.1.1**, part of the Alice 2.x series.
 
 [Get started](https://alicemusic.online/getting-started.html) · [Deploy Alice](https://alicemusic.online/deployment.html) · [Command guide](https://alicemusic.online/commands.html)
 
@@ -56,6 +56,9 @@ git clone https://github.com/thanosbots/Alice.git
 cd Alice
 bash setup.sh
 ```
+
+Setup automatically installs Alice’s built-in music URL resolver. No Docker container, local API port, music API key or separate service needs to be configured. `start.sh` also runs setup if the resolver dependency is missing. Music availability still depends on the provider.
+
 
 Fill in the generated `Config.env` using [Config.env.example](Config.env.example), then start Alice:
 

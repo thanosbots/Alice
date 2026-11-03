@@ -1,5 +1,7 @@
 """In-process music library provider: no third-party server or API key."""
 import asyncio
+import base64
+import binascii
 import html
 import re
 import time
@@ -7,6 +9,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import aiohttp
+from Crypto.Cipher import DES
+from Crypto.Util.Padding import unpad
 
 
 class MusicError(Exception):
@@ -125,8 +129,37 @@ class MusicClient:
 
     @staticmethod
     def valid_media_url(url):
-        parsed = urlparse(url)
-        return parsed.scheme == "https" and (parsed.hostname or "").endswith(".saavncdn.com")
+        if not isinstance(url, str):
+            return False
+        try:
+            parsed = urlparse(url)
+            return (parsed.scheme == "https"
+                    and (parsed.hostname or "").endswith(".saavncdn.com")
+                    and parsed.username is None and parsed.password is None
+                    and parsed.port in (None, 443))
+        except ValueError:
+            return False
+
+    @classmethod
+    def media_url(cls, encrypted_url, quality):
+        """Resolve the provider's legacy URL envelope locally, not audio DRM.
+
+        Only the ordinary encrypted_media_url field is supported. DRM fields
+        are never consumed. CDN validation also applies to decoded values.
+        """
+        try:
+            encrypted = base64.b64decode(encrypted_url.strip(), validate=True)
+            decoded = unpad(DES.new(b"38346591", DES.MODE_ECB).decrypt(encrypted), 8).decode("utf-8")
+        except (AttributeError, TypeError, ValueError, UnicodeError, binascii.Error) as exc:
+            raise MusicError("Music provider returned an unsupported audio URL format.") from exc
+        parsed = urlparse(decoded)
+        if parsed.scheme == "http":
+            decoded = parsed._replace(scheme="https").geturl()
+        if not cls.valid_media_url(decoded):
+            raise MusicError("Music provider returned an untrusted audio URL.")
+        parsed = urlparse(decoded)
+        path = re.sub(r"_(?:12|48|96|160|320)(\.mp4)$", lambda m: f"_{quality}{m[1]}", parsed.path)
+        return parsed._replace(path=path).geturl()
 
     async def download(self, track):
         key = (track['id'], min(self.quality, track['quality']))
@@ -161,10 +194,7 @@ class MusicClient:
                 return str(target)
             if not track["encrypted_url"]:
                 raise MusicError("This track has no available audio stream.")
-            auth = await self.request("song.generateAuthToken", url=track["encrypted_url"], bitrate=quality, pid=track["id"])
-            url = auth.get("auth_url", "")
-            if not self.valid_media_url(url):
-                raise MusicError("music library could not provide an available audio stream.")
+            url = self.media_url(track["encrypted_url"], quality)
             # Unique temporary files keep concurrent downloads and interruptions safe.
             import uuid
             temporary = target.with_suffix(f".{uuid.uuid4().hex}.part")

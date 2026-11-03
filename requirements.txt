@@ -8,3 +8,4 @@ pymongo==4.19.0
 dnspython==2.9.0
 Pillow==13.0.0
 python-dotenv==1.2.4
+pycryptodome==3.23.0
