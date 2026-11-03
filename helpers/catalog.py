@@ -3,6 +3,7 @@ import asyncio
 import base64
 import binascii
 import html
+import math
 import re
 import time
 from pathlib import Path
@@ -83,11 +84,43 @@ class MusicClient:
             "title": html.unescape(item.get("title") or item.get("song") or "Unknown song"),
             "artist": html.unescape(", ".join(a["name"] for a in info.get("artistMap", {}).get("primary_artists", []) if a.get("name")) or item.get("subtitle", "")),
             "duration": duration,
+            "album": html.unescape(info.get("album") or ""),
+            "year": str(item.get("year") or ""),
+            "play_count": item.get("play_count"),
             "link": item.get("perma_url", "https://www.jiosaavn.com"),
             "thumbnail": (item.get("image") or "").replace("150x150", "500x500"),
             "encrypted_url": info.get("encrypted_media_url") or item.get("encrypted_media_url"),
             "quality": 320 if str(info.get("320kbps", "false")).lower() == "true" else 160,
         }
+
+    @staticmethod
+    def search_rank(track, query):
+        """Match intent first; popularity breaks ties between matching recordings.
+
+        Repeated hook words are equivalent (Dilbar Dilbar / Dilbar). Album
+        reissues make release year unreliable as a default freshness signal.
+        Stable sorting preserves provider order when metadata is missing.
+        """
+        def words(value):
+            return set(re.findall(r"[^\W_]+", html.unescape(value).casefold()))
+
+        wanted = words(query)
+        title = track["title"]
+        # A compilation's '(From "Film")' suffix is metadata, not song title.
+        base = re.split(r'\s*\(\s*from\b', title, flags=re.I)[0]
+        title_words = words(base)
+        metadata = words(" ".join((title, track.get("artist", ""),
+                                   track.get("album", ""), track.get("year", ""))))
+        coverage = len(wanted & metadata) / max(len(wanted), 1)
+        title_fit = len(wanted & title_words) / max(len(title_words), 1)
+        variants = {"remix", "lofi", "slowed", "reverb", "sped", "karaoke", "instrumental", "cover", "mashup", "live"}
+        unwanted_variant = bool((title_words & variants) - wanted)
+        try:
+            popularity = round(math.log10(1 + max(0, int(track.get("play_count") or 0))), 1)
+        except (ValueError, TypeError, OverflowError):
+            popularity = 0
+        return (coverage, not unwanted_variant, title_fit, popularity,
+                base == title)
 
     async def search(self, query, limit=5):
         query = query.strip()
@@ -97,8 +130,10 @@ class MusicClient:
         cached = self.cache.get(key)
         if cached and cached[0] > time.monotonic():
             return cached[1]
-        data = await self.request("search.getResults", q=query, n=limit, p=1)
-        tracks = [self.track(i) for i in data.get("results", []) if i.get("type", "song") == "song"][:limit]
+        data = await self.request("search.getResults", q=query, n=max(30, limit), p=1)
+        tracks = [self.track(i) for i in data.get("results", []) if i.get("type", "song") == "song"]
+        tracks.sort(key=lambda track: self.search_rank(track, query), reverse=True)
+        tracks = tracks[:limit]
         if len(self.cache) >= 200:
             self.cache.pop(next(iter(self.cache)))
         self.cache[key] = (time.monotonic() + 300, tracks)

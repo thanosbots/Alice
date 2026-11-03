@@ -79,6 +79,8 @@ Add the bot and assistant account to your group, grant the permissions described
 
 You can also reply to a Telegram audio file or voice message with `/play`. Playback and queue edits are restricted to group admins or the configured bot owner.
 
+Song-name searches compare up to 30 results using title, artist/movie matches and popularity instead of blindly playing the first result. For example, `/play dilbar dilbar` prefers the popular *Satyameva Jayate* recording; `/play dilbar alka yagnik` requests the older version. Add an artist, film or year for a particular recording, or use `/search` to choose. Unrequested remixes and lofi versions are deprioritized. This is a best-match heuristic, not a guarantee that every ambiguous title selects the version you intended; compilation release years alone do not identify a newer recording.
+
 ## Frequently asked questions
 
 ### Does Alice work without an API?

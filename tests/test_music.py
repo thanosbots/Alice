@@ -1,4 +1,5 @@
 import base64
+import json
 from Crypto.Cipher import DES
 from Crypto.Util.Padding import pad
 import asyncio
@@ -55,6 +56,35 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
     async def test_empty_result(self):
         self.client.request.return_value = {'results': []}
         with self.assertRaises(MusicError): await self.client.resolve('unknown')
+
+    async def test_live_dilbar_fixture_prefers_popular_film_recording(self):
+        # Public search metadata captured 2026-11-03; no stream URLs or secrets.
+        fixture = Path(__file__).parent / 'fixtures' / 'dilbar_search.json'
+        self.client.request.return_value = json.loads(fixture.read_text())
+        for query, expected in [('dilbar dilbar', 'wOTPo9Mc'),
+                                ('dilbar', 'wOTPo9Mc'),
+                                ('dilbar alka yagnik', '9cCPZgWV'),
+                                ('dilbar sirf tum', '9cCPZgWV'),
+                                ('dilbar 1999', '9cCPZgWV'),
+                                ('dilbar remix', 'r_Bx8bxm')]:
+            with self.subTest(query=query):
+                self.assertEqual((await self.client.resolve(query))['id'], expected)
+        self.client.request.assert_awaited_with('search.getResults', q='dilbar remix', n=30, p=1)
+
+    async def test_ranking_preserves_specific_title_and_missing_metadata(self):
+        exact = self.client.track(song('exact'))
+        exact['title'] = 'Dilbar Mere'
+        broad = dict(exact, id='broad', title='Dilbar', play_count=999999999)
+        self.assertGreater(self.client.search_rank(exact, 'dilbar mere'),
+                           self.client.search_rank(broad, 'dilbar mere'))
+        for invalid in (None, '', 'unknown', -1):
+            exact['play_count'] = invalid
+            self.client.search_rank(exact, 'dilbar mere')
+
+    async def test_selected_track_is_not_reranked(self):
+        self.client.request.return_value = {'songs': [song('chosen')]}
+        self.assertEqual((await self.client.resolve('track:chosen'))['id'], 'chosen')
+        self.client.request.assert_awaited_once_with('song.getDetails', pids='chosen')
 
     async def test_reject_external_url(self):
         with self.assertRaises(MusicError): await self.client.resolve('https://evil.test/song/name/id')
