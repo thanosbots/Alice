@@ -27,7 +27,7 @@ def clear_pending():
 def failure_text(exc):
     log.warning('Update failed (%s)', type(exc).__name__)
     detail = str(exc) if isinstance(exc, updater.UpdateError) else type(exc).__name__
-    return f'Update stopped: {detail}\nThe bot has not restarted. Run /update to try again.'
+    return f'Update stopped: {detail}\nThe bot has not restarted. Use /logs for details, then /update to try again.'
 
 
 @bot.on_message(filters.command('update') & filters.user(Config.OWNER_ID) & filters.private)

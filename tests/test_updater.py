@@ -155,6 +155,33 @@ class UpdateCommandTests(unittest.IsolatedAsyncioTestCase):
 
 
 class UpdateStagingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_uv_failure_retries_pip_with_project_cache(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            candidate = (await self.staged_check(root)).release
+            root = candidate.root
+            uv = root / '.bootstrap/bin/uv'
+            uv.parent.mkdir(parents=True)
+            uv.touch()
+            commands = []
+            async def fake_run(*args, **kwargs):
+                commands.append((args, kwargs))
+                if args[0] == uv:
+                    self.assertEqual(kwargs['extra_env']['UV_CACHE_DIR'], str(root / '.uv-cache'))
+                    raise u.UpdateError('uv failure')
+                return candidate.revision if args[:2] == ('git', 'rev-parse') else ''
+            with patch.object(u, 'run', side_effect=fake_run):
+                await u.install_update(candidate)
+            self.assertTrue(any(args[1:4] == ('-m', 'pip', 'install') for args, _ in commands))
+
+    async def test_subprocess_failure_logs_redacted_output(self):
+        process = SimpleNamespace(returncode=1, communicate=AsyncMock(return_value=(b'error: https://user:password@example.com unavailable', None)))
+        with patch.object(u.asyncio, 'create_subprocess_exec', return_value=process), self.assertLogs(u.log, level='ERROR') as captured:
+            with self.assertRaisesRegex(u.UpdateError, '/logs'):
+                await u.run('uv', 'pip', 'install')
+        self.assertIn('unavailable', captured.output[0])
+        self.assertNotIn('user:password', captured.output[0])
+
     async def staged_check(self, root, version='2.2.0'):
         self.commands = []
         async def fake_run(*args, **kwargs):

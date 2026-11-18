@@ -169,3 +169,7 @@ Thanks to the projects that make Alice possible:
 
 **Alice Music Bot · Thanos Pro**  
 Rishabh Anand · Chetan Anand · Shreyas Lande
+
+### Owner diagnostics
+
+Use `/logs` in the bot’s private chat to see the latest 100 log lines, or `/logs 200` (maximum 500). Only `OWNER_ID` can use it; group requests are ignored. Known configured secrets and URLs are redacted before sending. Long output arrives as a text file. Failed updates record dependency output in the logs and keep the running code in place. The updater tries pip in its staging environment if uv fails.

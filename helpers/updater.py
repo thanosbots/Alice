@@ -2,12 +2,16 @@
 import asyncio
 from dataclasses import dataclass
 import json
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import shutil
 import sys
 import uuid
 from helpers.version import VERSION, read_version, version_key
+from helpers.diagnostics import redact
+
+log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPO = 'https://github.com/thanosbots/Alice.git'
@@ -30,20 +34,24 @@ def safe_path(name):
                         or p.startswith('alice_logs.txt') for p in path.parts))
 
 
-async def run(*args, cwd=None, timeout=180):
+async def run(*args, cwd=None, timeout=180, extra_env=None):
     env = dict(os.environ, GIT_TERMINAL_PROMPT='0', PIP_DISABLE_PIP_VERSION_CHECK='1')
+    env.update(extra_env or {})
     process = await asyncio.create_subprocess_exec(
         *map(str, args), cwd=cwd, env=env,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
     try:
         output, _ = await asyncio.wait_for(process.communicate(), timeout)
-    except (asyncio.TimeoutError, asyncio.CancelledError):
+    except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
         process.kill()
-        await process.communicate()
+        output, _ = await process.communicate()
+        if isinstance(exc, asyncio.TimeoutError):
+            log.error('%s timed out after %ss: %s', Path(str(args[0])).name, timeout, redact(output.decode(errors='replace'))[-12000:])
+            raise UpdateError(f'{Path(str(args[0])).name} timed out. Use /logs for details.') from exc
         raise
     if process.returncode:
-        # Never echo subprocess output to Telegram: URLs may contain credentials.
-        raise UpdateError(f'{Path(str(args[0])).name} failed (exit {process.returncode}).')
+        log.error('%s failed (exit %s):\n%s', Path(str(args[0])).name, process.returncode, redact(output.decode(errors='replace'))[-12000:])
+        raise UpdateError(f'{Path(str(args[0])).name} failed (exit {process.returncode}). Use /logs for details.')
     return output.decode(errors='replace').strip()
 
 
@@ -181,12 +189,17 @@ async def install_update(candidate):
     interpreter = release / 'venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
     await run(sys.executable, '-m', 'venv', interpreter.parent.parent, timeout=120)
     uv = root / '.bootstrap/bin/uv'
+    install_env = {'UV_CACHE_DIR': str(root / '.uv-cache'), 'UV_LINK_MODE': 'copy'}
     if uv.is_file():
-        await run(uv, 'pip', 'install', '--python', interpreter, '-r', source / 'requirements.txt', timeout=900)
+        try:
+            await run(uv, 'pip', 'install', '--python', interpreter, '-r', source / 'requirements.txt', timeout=900, extra_env=install_env)
+        except UpdateError:
+            log.warning('uv install failed; retrying with pip in the staged environment.')
+            await run(interpreter, '-m', 'pip', 'install', '-r', source / 'requirements.txt', timeout=900)
     else:
         await run(interpreter, '-m', 'pip', 'install', '-r', source / 'requirements.txt', timeout=900)
     await run(interpreter, '-m', 'pip', 'check', timeout=60)
-    await run(interpreter, '-c', 'import pyrogram, pytgcalls, motor, aiohttp, PIL, dotenv', timeout=60)
+    await run(interpreter, '-c', 'import pyrogram, pytgcalls, motor, aiohttp, PIL, dotenv; from Crypto.Cipher import DES', timeout=60)
     # Record the old code before applying. Local configuration is never touched.
     backup = release / 'backup'
     previous = state.get('files', [])

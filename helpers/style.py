@@ -60,6 +60,7 @@ OWNER_PAGES = {
                     '<b>/stats</b> — uptime, listeners, groups and active streams; includes Refresh.\n'
                     '<b>/dbstats</b> — stored users, groups and total plays.\n'
                     '<b>/top</b> — ten listeners with the most plays.\n\n'
+                    '<b>/logs</b> — recent diagnostics in owner private chat; /logs 200 for more.\n'
                     '<b>/update</b> — check for a new version; confirm before installing.\n'
                     '<i>Only available in the owner’s private chat.</i>'),
     'owner_broadcast': ('06 · Announcements', '<blockquote>/broadcast users\n/broadcast groups</blockquote>\n'
