@@ -15,6 +15,7 @@ from database.users import increment_play_count, save_user
 from helpers.api import resolve_audio
 from helpers.catalog import MusicError
 from helpers.media import validate_audio
+from helpers.assistant_join import ensure_assistant_joined
 from helpers.player import controls
 from helpers.style import track_card
 from helpers.identity import is_owner, selection_name
@@ -86,12 +87,7 @@ async def prepare_request(client, message, query, requester, version):
             if len(queues.get(chat_id, [])) >= Config.MAX_QUEUE_SIZE:
                 return await status.edit('The queue is full.')
             if not queues.get(chat_id):
-                # Ensure the assistant is in the group before the first join attempt.
-                try:
-                    await assistant.get_chat_member(chat_id, assistant.id)
-                except errors.UserNotParticipant:
-                    invite = message.chat.username or await client.export_chat_invite_link(chat_id)
-                    await assistant.join_chat(invite)
+                await ensure_assistant_joined(client, assistant, message.chat)
                 try:
                     await voice.join_vc(chat_id, stream)
                 except NoActiveGroupCall:
