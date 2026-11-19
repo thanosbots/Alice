@@ -26,6 +26,16 @@ class UpdateError(Exception):
     pass
 
 
+MANAGED_UPDATE_MESSAGE = (
+    'This deployment is managed by Railway/Docker. Update your GitHub repository '
+    'and redeploy the service from your hosting dashboard. In-bot updates are disabled.'
+)
+
+
+def managed_deployment():
+    return bool(os.getenv('RAILWAY_PROJECT_ID')) or os.getenv('ALICE_MANAGED_DEPLOYMENT') == '1'
+
+
 def safe_path(name):
     path = PurePosixPath(name)
     return (bool(name) and not path.is_absolute() and '..' not in path.parts
@@ -124,6 +134,8 @@ def discard_release(release):
 
 
 async def check_update(root=ROOT, repo=None, branch=None):
+    if managed_deployment():
+        raise UpdateError(MANAGED_UPDATE_MESSAGE)
     """Read a remote release without installing code or dependencies."""
     root = Path(root).resolve()
     repo = repo or os.getenv('UPDATE_REPO') or DEFAULT_REPO
@@ -175,6 +187,8 @@ async def check_update(root=ROOT, repo=None, branch=None):
 
 
 async def install_update(candidate):
+    if managed_deployment():
+        raise UpdateError(MANAGED_UPDATE_MESSAGE)
     """Install only the staged commit the owner approved; never fetch a new HEAD."""
     root, release, source = candidate.root, candidate.directory, candidate.source
     repo, revision, names = candidate.repo, candidate.revision, candidate.files

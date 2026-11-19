@@ -14,6 +14,7 @@ class Config:
     MONGO_URL = os.getenv("MONGO_URL", "")
     OWNER_ID = int(os.getenv("OWNER_ID", 0))
     LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", 0))
+    SESSION_DIR = os.getenv("SESSION_DIR", ".")
     MUSIC_QUALITY = int(os.getenv("MUSIC_QUALITY", "320"))
     MAX_DOWNLOAD_MB = max(1, int(os.getenv("MAX_DOWNLOAD_MB", "40")))
     MAX_TRACK_MINUTES = max(1, int(os.getenv("MAX_TRACK_MINUTES", "30")))

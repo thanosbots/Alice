@@ -34,6 +34,8 @@ def failure_text(exc):
 async def update_command(client, message):
     if not private_owner(message.from_user, message.chat, Config.OWNER_ID):
         return
+    if updater.managed_deployment():
+        return await message.reply_text(updater.MANAGED_UPDATE_MESSAGE)
     if updater.lock.locked() or updater.restart_requested.is_set():
         return await message.reply_text('An update is already running.')
     async with updater.lock:

@@ -1,4 +1,5 @@
 import atexit
+from pathlib import Path
 from pyrogram import Client
 from pytgcalls import PyTgCalls
 from pytgcalls.types import Call as GC, GroupCallConfig
@@ -34,11 +35,13 @@ class AssistantClient(Client):
 
 class BotClient(Client):
     def __init__(self):
+        Path(Config.SESSION_DIR).mkdir(parents=True, exist_ok=True)
         super().__init__(
             "AliceMusicBot",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
+            workdir=Config.SESSION_DIR,
             plugins=dict(root="plugins")
         )
 

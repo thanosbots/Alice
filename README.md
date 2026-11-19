@@ -27,9 +27,13 @@ Open the bot and tap **Start**, then add it to your group and follow its setup i
 > **100% free to use. No music API key needed.**  
 > Alice charges no bot subscription or music API fee. Hosting, internet and database costs depend on your setup. Telegram credentials are required only when hosting your own instance.
 
-Current code release: **2.1.1**, part of the Alice 2.x series.
+Current code release: **2.1.6**, part of the Alice 2.x series.
 
 [Get started](https://alicemusic.online/getting-started.html) · [Deploy Alice](https://alicemusic.online/deployment.html) · [Command guide](https://alicemusic.online/commands.html)
+
+## Deploy on Railway
+
+[Railway deployment guide](RAILWAY.md) — automatic Python and FFmpeg installation, persistent session storage, and GitHub-based redeploys. Add your credentials and a `/data` volume in Railway before starting.
 
 ## What can Alice do?
 
