@@ -33,7 +33,11 @@ Current code release: **2.1.6**, part of the Alice 2.x series.
 
 ## Deploy on Railway
 
-[Railway deployment guide](RAILWAY.md) — automatic Python and FFmpeg installation, persistent session storage, and GitHub-based redeploys. Add your credentials and a `/data` volume in Railway before starting.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/WiPJvE)
+
+The template includes all variable names and the `/data` volume. Fill in your six required values and deploy; no separate variable sharing step is needed.
+
+[Railway deployment guide](RAILWAY.md) — automatic Python and FFmpeg installation, persistent session storage, and GitHub-based redeploys. For a manual GitHub deployment, add your credentials and a `/data` volume before starting.
 
 ## What can Alice do?
 
