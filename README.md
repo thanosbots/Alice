@@ -31,13 +31,13 @@ Current code release: **2.1.6**, part of the Alice 2.x series.
 
 [Get started](https://alicemusic.online/getting-started.html) · [Deploy Alice](https://alicemusic.online/deployment.html) · [Command guide](https://alicemusic.online/commands.html)
 
-## Deploy on Railway
+## Free Deploy
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/WiPJvE)
+[![Deploy Alice Music Bot on Railway](https://railway.com/button.svg)](https://railway.com/deploy/WiPJvE)
 
-The template includes all variable names and the `/data` volume. Fill in your six required values and deploy; no separate variable sharing step is needed.
+Deploy **Alice Music Bot** with ready-made variable fields and persistent session storage. Add your credentials and deploy.
 
-[Railway deployment guide](RAILWAY.md) — automatic Python and FFmpeg installation, persistent session storage, and GitHub-based redeploys. For a manual GitHub deployment, add your credentials and a `/data` volume before starting.
+*Railway free/trial usage is subject to account eligibility and usage limits; continuous hosting may require a paid plan.*
 
 ## What can Alice do?
 
