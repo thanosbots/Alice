@@ -2,6 +2,10 @@
 
 # Alice Music Bot — Telegram Music Bot Without a Music API Key
 
+**Official maintained repository for Alice 2.x by Rishabh Anand / Thanos Pro.**
+
+[Documentation](https://alicemusic.online/) · [Deployment guides](https://alicemusic.online/deployment.html) · [Previous Alice repository](https://github.com/rishabhops/alice)
+
 <img src="assets/alice-waveform.gif" width="200" height="30" alt="Animated lavender and lime audio waveform">
 
 <p>
@@ -109,21 +113,21 @@ Choose your platform for a step-by-step deployment guide.
 
 - <img src="assets/deploy/railway.svg" width="18" height="18" alt=""> **Railway** — Deploy with the Alice template. Fill in your values and let Railway handle the setup.
 
-  [![Railway deployment guide](assets/deploy/railway-button.svg)](https://example.com/alice-docs/deploy-railway.html)
+  [![Railway deployment guide](assets/deploy/railway-button.svg)](https://alicemusic.online/deploy-railway.html)
 
 - <img src="assets/deploy/vps.svg" width="18" height="18" alt=""> **Linux VPS** — Host Alice on your own server with the complete installation and startup guide.
 
-  [![Linux VPS deployment guide](assets/deploy/vps-button.svg)](https://example.com/alice-docs/deploy-vps.html)
+  [![Linux VPS deployment guide](assets/deploy/vps-button.svg)](https://alicemusic.online/deploy-vps.html)
 
 - <img src="assets/deploy/linux.svg" width="18" height="18" alt=""> **Local Linux** — Run Alice on your Linux computer. Keep the machine awake and connected.
 
-  [![Local Linux deployment guide](assets/deploy/linux-button.svg)](https://example.com/alice-docs/deploy-linux.html)
+  [![Local Linux deployment guide](assets/deploy/linux-button.svg)](https://alicemusic.online/deploy-linux.html)
 
 - <img src="assets/deploy/macos.svg" width="18" height="18" alt=""> **macOS** — Set up Alice on your Mac, with instructions for keeping it running.
 
-  [![macOS deployment guide](assets/deploy/macos-button.svg)](https://example.com/alice-docs/deploy-macos.html)
+  [![macOS deployment guide](assets/deploy/macos-button.svg)](https://alicemusic.online/deploy-macos.html)
 
-*Documentation is coming soon. These guide buttons currently use placeholder links; we will update them when the docs site is published. Railway free/trial hosting depends on account eligibility and usage limits.*
+*Railway free/trial hosting depends on account eligibility and usage limits.*
 
 <a id="developer"></a>
 
